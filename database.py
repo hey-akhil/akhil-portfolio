@@ -1,5 +1,5 @@
 """
-JSON File Database Manager for Akhil Pandey's FastAPI Portfolio
+AutomateX Database Manager (Supabase Cloud + Resilient Local JSON Fallback)
 Supports full CRUD for Projects, Experience, Education, Skills, Profile, and Messages.
 """
 
@@ -7,11 +7,35 @@ import os
 import json
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+from dotenv import load_dotenv
+
+# Load environment variables (.env)
+load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DATA_FILE = os.path.join(DATA_DIR, "portfolio.json")
 
+# Supabase Credentials
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_KEY = (
+    os.getenv("SUPABASE_KEY")
+    or os.getenv("SUPABASE_SECRET_KEY")
+    or os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
+).strip()
+
+supabase_client = None
+
+if SUPABASE_URL and SUPABASE_KEY:
+    try:
+        from supabase import create_client
+        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        print(f"[+] Connected to Supabase Cloud Database: {SUPABASE_URL}")
+    except Exception as e:
+        print(f"[!] Warning: Could not initialize Supabase client: {e}")
+        supabase_client = None
+
+# Default Fallback Dataset
 DEFAULT_DATA: Dict[str, Any] = {
     "profile": {
         "name": "Akhil Pandey",
@@ -244,27 +268,30 @@ DEFAULT_DATA: Dict[str, Any] = {
     "messages": []
 }
 
-def load_data() -> Dict[str, Any]:
-    """Loads portfolio database from JSON or initializes with defaults."""
+# ============================================================================
+# Local JSON File Operations (Fallback Storage)
+# ============================================================================
+
+def load_local_data() -> Dict[str, Any]:
+    """Loads portfolio database from local JSON file with fallback defaults."""
     os.makedirs(DATA_DIR, exist_ok=True)
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                # Ensure resume_url and skills array exist
                 if "profile" in data and "resume_url" not in data["profile"]:
                     data["profile"]["resume_url"] = "/resume"
                 if "skills" not in data or isinstance(data.get("skills"), dict):
                     data["skills"] = DEFAULT_DATA["skills"]
                 return data
         except Exception as e:
-            print(f"[!] Warning reading {DATA_FILE}: {e}. Using defaults.")
-    
-    save_data(DEFAULT_DATA)
+            print(f"[!] Warning reading local {DATA_FILE}: {e}. Using defaults.")
+
+    save_local_data(DEFAULT_DATA)
     return DEFAULT_DATA
 
-def save_data(data: Dict[str, Any]) -> bool:
-    """Saves portfolio database to JSON file."""
+def save_local_data(data: Dict[str, Any]) -> bool:
+    """Saves portfolio database to local JSON file."""
     os.makedirs(DATA_DIR, exist_ok=True)
     try:
         with open(DATA_FILE, "w", encoding="utf-8") as f:
@@ -275,20 +302,68 @@ def save_data(data: Dict[str, Any]) -> bool:
         return False
 
 # ============================================================================
+# Unified Portfolio Loader
+# ============================================================================
+
+def load_data() -> Dict[str, Any]:
+    """
+    Unified loader for templates and routes.
+    Tries Supabase first; if any table is not ready or network fails,
+    seamlessly falls back to local JSON data.
+    """
+    local = load_local_data()
+    if supabase_client:
+        try:
+            prof = get_profile()
+            if prof and prof.get("name"):
+                return {
+                    "profile": prof,
+                    "skills": get_skills(),
+                    "services": local.get("services", DEFAULT_DATA["services"]),
+                    "projects": get_projects(),
+                    "experience": get_experience(),
+                    "education": get_education(),
+                    "messages": get_messages()
+                }
+        except Exception:
+            pass
+    return local
+
+def save_data(data: Dict[str, Any]) -> bool:
+    """Saves data locally and attempts Supabase sync."""
+    return save_local_data(data)
+
+# ============================================================================
 # Projects CRUD
 # ============================================================================
 
 def get_projects() -> List[Dict[str, Any]]:
-    return load_data().get("projects", [])
+    """Fetches projects from Supabase with fallback to local JSON."""
+    if supabase_client:
+        try:
+            res = supabase_client.table("projects").select("*").order("created_at", desc=True).execute()
+            if res.data is not None and len(res.data) > 0:
+                return res.data
+        except Exception:
+            pass
+    return load_local_data().get("projects", [])
 
 def get_project_by_id(project_id: str) -> Optional[Dict[str, Any]]:
-    for p in get_projects():
+    """Gets a project by its unique ID."""
+    if supabase_client:
+        try:
+            res = supabase_client.table("projects").select("*").eq("id", project_id).execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]
+        except Exception:
+            pass
+    for p in load_local_data().get("projects", []):
         if p.get("id") == project_id:
             return p
     return None
 
 def add_project(data_dict: Dict[str, Any]) -> Dict[str, Any]:
-    db = load_data()
+    """Adds a new project to Supabase and syncs with local storage."""
     tech_stack = data_dict.get("tech_stack", [])
     if isinstance(tech_stack, str):
         tech_stack = [t.strip() for t in tech_stack.split(",") if t.strip()]
@@ -321,13 +396,26 @@ def add_project(data_dict: Dict[str, Any]) -> Dict[str, Any]:
         "date": str(datetime.now().year)
     }
 
+    # Supabase cloud write
+    if supabase_client:
+        try:
+            supabase_client.table("projects").insert(new_project).execute()
+        except Exception as e:
+            print(f"[!] Supabase insert project notice: {e}")
+
+    # Local JSON dual-write
+    db = load_local_data()
     db.setdefault("projects", []).insert(0, new_project)
-    save_data(db)
+    save_local_data(db)
     return new_project
 
 def update_project(project_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    db = load_data()
+    """Updates a project in Supabase and local storage."""
+    # Local update
+    db = load_local_data()
     projects = db.get("projects", [])
+    updated_obj = None
+
     for i, p in enumerate(projects):
         if p.get("id") == project_id:
             if "title" in updates and updates["title"] is not None:
@@ -352,38 +440,87 @@ def update_project(project_id: str, updates: Dict[str, Any]) -> Optional[Dict[st
 
             projects[i] = p
             db["projects"] = projects
-            save_data(db)
-            return p
-    return None
+            save_local_data(db)
+            updated_obj = p
+            break
+
+    # Supabase update
+    if supabase_client and updated_obj:
+        try:
+            clean_fields = {
+                "title": updated_obj.get("title"),
+                "category": updated_obj.get("category"),
+                "category_label": updated_obj.get("category_label"),
+                "description": updated_obj.get("description"),
+                "tech_stack": updated_obj.get("tech_stack"),
+                "github_url": updated_obj.get("github_url"),
+                "render_url": updated_obj.get("render_url"),
+                "has_render": updated_obj.get("has_render"),
+                "status": updated_obj.get("status"),
+                "date": updated_obj.get("date")
+            }
+            supabase_client.table("projects").update(clean_fields).eq("id", project_id).execute()
+        except Exception as e:
+            print(f"[!] Supabase update project notice: {e}")
+
+    return updated_obj
 
 def delete_project(project_id: str) -> bool:
-    db = load_data()
+    """Deletes a project from Supabase and local storage."""
+    deleted = False
+
+    # Supabase delete
+    if supabase_client:
+        try:
+            supabase_client.table("projects").delete().eq("id", project_id).execute()
+            deleted = True
+        except Exception as e:
+            print(f"[!] Supabase delete project notice: {e}")
+
+    # Local delete
+    db = load_local_data()
     projects = db.get("projects", [])
     filtered = [p for p in projects if p.get("id") != project_id]
     if len(filtered) != len(projects):
         db["projects"] = filtered
-        save_data(db)
-        return True
-    return False
+        save_local_data(db)
+        deleted = True
+
+    return deleted
 
 # ============================================================================
-# Experience CRUD (Company, Role, Dates, Details)
+# Experience CRUD
 # ============================================================================
 
 def get_experience() -> List[Dict[str, Any]]:
-    return load_data().get("experience", [])
+    """Fetches work experience records from Supabase or local storage."""
+    if supabase_client:
+        try:
+            res = supabase_client.table("experience").select("*").order("created_at", desc=True).execute()
+            if res.data is not None and len(res.data) > 0:
+                return res.data
+        except Exception:
+            pass
+    return load_local_data().get("experience", [])
 
 def get_experience_by_id(exp_id: str) -> Optional[Dict[str, Any]]:
-    for e in get_experience():
+    """Gets an experience record by ID."""
+    if supabase_client:
+        try:
+            res = supabase_client.table("experience").select("*").eq("id", exp_id).execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]
+        except Exception:
+            pass
+    for e in load_local_data().get("experience", []):
         if e.get("id") == exp_id:
             return e
     return None
 
 def add_experience(data_dict: Dict[str, Any]) -> Dict[str, Any]:
-    db = load_data()
+    """Adds a work experience item to Supabase and local storage."""
     points = data_dict.get("points", [])
     if isinstance(points, str):
-        # Support split by newline or bullet or comma
         points = [p.strip().lstrip("•-▹* ") for p in points.replace("\r", "").split("\n") if p.strip()]
 
     new_exp = {
@@ -395,13 +532,24 @@ def add_experience(data_dict: Dict[str, Any]) -> Dict[str, Any]:
         "badge": data_dict.get("badge", "Full-Time").strip(),
         "points": points
     }
+
+    if supabase_client:
+        try:
+            supabase_client.table("experience").insert(new_exp).execute()
+        except Exception as e:
+            print(f"[!] Supabase add experience notice: {e}")
+
+    db = load_local_data()
     db.setdefault("experience", []).insert(0, new_exp)
-    save_data(db)
+    save_local_data(db)
     return new_exp
 
 def update_experience(exp_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    db = load_data()
+    """Updates a work experience item in Supabase and local storage."""
+    db = load_local_data()
     experiences = db.get("experience", [])
+    updated_obj = None
+
     for i, e in enumerate(experiences):
         if e.get("id") == exp_id:
             if "company" in updates and updates["company"] is not None:
@@ -423,35 +571,78 @@ def update_experience(exp_id: str, updates: Dict[str, Any]) -> Optional[Dict[str
 
             experiences[i] = e
             db["experience"] = experiences
-            save_data(db)
-            return e
-    return None
+            save_local_data(db)
+            updated_obj = e
+            break
+
+    if supabase_client and updated_obj:
+        try:
+            clean_fields = {
+                "company": updated_obj.get("company"),
+                "role": updated_obj.get("role"),
+                "location": updated_obj.get("location"),
+                "period": updated_obj.get("period"),
+                "badge": updated_obj.get("badge"),
+                "points": updated_obj.get("points")
+            }
+            supabase_client.table("experience").update(clean_fields).eq("id", exp_id).execute()
+        except Exception as e:
+            print(f"[!] Supabase update experience notice: {e}")
+
+    return updated_obj
 
 def delete_experience(exp_id: str) -> bool:
-    db = load_data()
+    """Deletes an experience record from Supabase and local storage."""
+    deleted = False
+
+    if supabase_client:
+        try:
+            supabase_client.table("experience").delete().eq("id", exp_id).execute()
+            deleted = True
+        except Exception as e:
+            print(f"[!] Supabase delete experience notice: {e}")
+
+    db = load_local_data()
     experiences = db.get("experience", [])
     filtered = [e for e in experiences if e.get("id") != exp_id]
     if len(filtered) != len(experiences):
         db["experience"] = filtered
-        save_data(db)
-        return True
-    return False
+        save_local_data(db)
+        deleted = True
+
+    return deleted
 
 # ============================================================================
-# Education CRUD (Degree, Institution, Dates, Grade, Highlights)
+# Education CRUD
 # ============================================================================
 
 def get_education() -> List[Dict[str, Any]]:
-    return load_data().get("education", [])
+    """Fetches education items from Supabase or local storage."""
+    if supabase_client:
+        try:
+            res = supabase_client.table("education").select("*").order("created_at", desc=False).execute()
+            if res.data is not None and len(res.data) > 0:
+                return res.data
+        except Exception:
+            pass
+    return load_local_data().get("education", [])
 
 def get_education_by_id(edu_id: str) -> Optional[Dict[str, Any]]:
-    for ed in get_education():
+    """Gets an education record by ID."""
+    if supabase_client:
+        try:
+            res = supabase_client.table("education").select("*").eq("id", edu_id).execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]
+        except Exception:
+            pass
+    for ed in load_local_data().get("education", []):
         if ed.get("id") == edu_id:
             return ed
     return None
 
 def add_education(data_dict: Dict[str, Any]) -> Dict[str, Any]:
-    db = load_data()
+    """Adds an education record to Supabase and local storage."""
     new_edu = {
         "id": f"edu-{int(datetime.now().timestamp() * 1000)}",
         "degree": data_dict.get("degree", "").strip(),
@@ -461,13 +652,24 @@ def add_education(data_dict: Dict[str, Any]) -> Dict[str, Any]:
         "grade": data_dict.get("grade", "").strip(),
         "highlights": data_dict.get("highlights", "").strip()
     }
+
+    if supabase_client:
+        try:
+            supabase_client.table("education").insert(new_edu).execute()
+        except Exception as e:
+            print(f"[!] Supabase add education notice: {e}")
+
+    db = load_local_data()
     db.setdefault("education", []).insert(0, new_edu)
-    save_data(db)
+    save_local_data(db)
     return new_edu
 
 def update_education(edu_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    db = load_data()
+    """Updates an education record in Supabase and local storage."""
+    db = load_local_data()
     educations = db.get("education", [])
+    updated_obj = None
+
     for i, ed in enumerate(educations):
         if ed.get("id") == edu_id:
             if "degree" in updates and updates["degree"] is not None:
@@ -485,30 +687,67 @@ def update_education(edu_id: str, updates: Dict[str, Any]) -> Optional[Dict[str,
 
             educations[i] = ed
             db["education"] = educations
-            save_data(db)
-            return ed
-    return None
+            save_local_data(db)
+            updated_obj = ed
+            break
+
+    if supabase_client and updated_obj:
+        try:
+            clean_fields = {
+                "degree": updated_obj.get("degree"),
+                "institution": updated_obj.get("institution"),
+                "location": updated_obj.get("location"),
+                "period": updated_obj.get("period"),
+                "grade": updated_obj.get("grade"),
+                "highlights": updated_obj.get("highlights")
+            }
+            supabase_client.table("education").update(clean_fields).eq("id", edu_id).execute()
+        except Exception as e:
+            print(f"[!] Supabase update education notice: {e}")
+
+    return updated_obj
 
 def delete_education(edu_id: str) -> bool:
-    db = load_data()
+    """Deletes an education record from Supabase and local storage."""
+    deleted = False
+
+    if supabase_client:
+        try:
+            supabase_client.table("education").delete().eq("id", edu_id).execute()
+            deleted = True
+        except Exception as e:
+            print(f"[!] Supabase delete education notice: {e}")
+
+    db = load_local_data()
     educations = db.get("education", [])
     filtered = [ed for ed in educations if ed.get("id") != edu_id]
     if len(filtered) != len(educations):
         db["education"] = filtered
-        save_data(db)
-        return True
-    return False
+        save_local_data(db)
+        deleted = True
+
+    return deleted
 
 # ============================================================================
-# Skills Management (Compact, Single-Box List)
+# Skills Management (Compact Single Box)
 # ============================================================================
 
 def get_skills() -> List[str]:
-    raw_skills = load_data().get("skills", [])
+    """Fetches list of skills from Supabase or local storage."""
+    if supabase_client:
+        try:
+            res = supabase_client.table("skills").select("name").order("id", desc=False).execute()
+            if res.data and len(res.data) > 0:
+                skill_names = [r["name"] for r in res.data if r.get("name")]
+                if skill_names:
+                    return skill_names
+        except Exception:
+            pass
+
+    raw_skills = load_local_data().get("skills", [])
     if isinstance(raw_skills, list):
         return raw_skills
     if isinstance(raw_skills, dict):
-        # Flatten if old format was dict
         flat = []
         for cat, items in raw_skills.items():
             for it in items:
@@ -517,10 +756,22 @@ def get_skills() -> List[str]:
     return DEFAULT_DATA["skills"]
 
 def update_skills(skills_list: List[str]) -> List[str]:
-    db = load_data()
+    """Updates skills list in Supabase and local storage."""
     clean_skills = [s.strip() for s in skills_list if s.strip()]
+
+    # Supabase sync: refresh skills table
+    if supabase_client:
+        try:
+            supabase_client.table("skills").delete().neq("id", 0).execute()
+            if clean_skills:
+                payload = [{"name": s} for s in clean_skills]
+                supabase_client.table("skills").insert(payload).execute()
+        except Exception as e:
+            print(f"[!] Supabase skills sync notice: {e}")
+
+    db = load_local_data()
     db["skills"] = clean_skills
-    save_data(db)
+    save_local_data(db)
     return clean_skills
 
 # ============================================================================
@@ -528,14 +779,41 @@ def update_skills(skills_list: List[str]) -> List[str]:
 # ============================================================================
 
 def get_profile() -> Dict[str, Any]:
-    return load_data().get("profile", {})
+    """Fetches user profile from Supabase with fallback to local JSON."""
+    if supabase_client:
+        try:
+            res = supabase_client.table("profile").select("*").eq("id", "main").execute()
+            if res.data and len(res.data) > 0:
+                prof = res.data[0]
+                if "resume_url" not in prof or not prof["resume_url"]:
+                    prof["resume_url"] = "/resume"
+                return prof
+        except Exception:
+            pass
+    return load_local_data().get("profile", {})
 
 def update_profile(updates: Dict[str, Any]) -> Dict[str, Any]:
-    db = load_data()
+    """Updates profile in Supabase and local storage."""
+    db = load_local_data()
     profile = db.get("profile", {})
     profile.update(updates)
     db["profile"] = profile
-    save_data(db)
+    save_local_data(db)
+
+    if supabase_client:
+        try:
+            allowed_cols = {
+                "name", "brand", "role_title", "tagline", "short_bio", 
+                "about", "email", "phone", "location", "github", 
+                "linkedin", "admin_pin", "status_badge", "resume_url", "stats"
+            }
+            clean_data = {k: v for k, v in updates.items() if k in allowed_cols}
+            if clean_data:
+                clean_data["id"] = "main"
+                supabase_client.table("profile").upsert(clean_data).execute()
+        except Exception as e:
+            print(f"[!] Supabase update profile notice: {e}")
+
     return profile
 
 # ============================================================================
@@ -543,7 +821,7 @@ def update_profile(updates: Dict[str, Any]) -> Dict[str, Any]:
 # ============================================================================
 
 def add_message(name: str, email: str, subject: str, message: str) -> Dict[str, Any]:
-    db = load_data()
+    """Saves a client message to Supabase and local storage."""
     new_msg = {
         "id": f"msg-{int(datetime.now().timestamp() * 1000)}",
         "name": name.strip(),
@@ -553,28 +831,68 @@ def add_message(name: str, email: str, subject: str, message: str) -> Dict[str, 
         "date": datetime.now().strftime("%d %b %Y, %I:%M %p"),
         "read": False
     }
+
+    if supabase_client:
+        try:
+            supabase_client.table("messages").insert(new_msg).execute()
+        except Exception as e:
+            print(f"[!] Supabase add message notice: {e}")
+
+    db = load_local_data()
     db.setdefault("messages", []).insert(0, new_msg)
-    save_data(db)
+    save_local_data(db)
     return new_msg
 
 def get_messages() -> List[Dict[str, Any]]:
-    return load_data().get("messages", [])
+    """Fetches all client inquiries from Supabase or local storage."""
+    if supabase_client:
+        try:
+            res = supabase_client.table("messages").select("*").order("created_at", desc=True).execute()
+            if res.data is not None and len(res.data) > 0:
+                return res.data
+        except Exception:
+            pass
+    return load_local_data().get("messages", [])
 
 def toggle_message_read(msg_id: str) -> bool:
-    db = load_data()
+    """Toggles read state of a message in Supabase and local storage."""
+    db = load_local_data()
+    found = False
+    new_read_val = False
+
     for m in db.get("messages", []):
         if m.get("id") == msg_id:
             m["read"] = not m.get("read", False)
-            save_data(db)
-            return True
-    return False
+            new_read_val = m["read"]
+            save_local_data(db)
+            found = True
+            break
+
+    if supabase_client and found:
+        try:
+            supabase_client.table("messages").update({"read": new_read_val}).eq("id", msg_id).execute()
+        except Exception as e:
+            print(f"[!] Supabase toggle message notice: {e}")
+
+    return found
 
 def delete_message(msg_id: str) -> bool:
-    db = load_data()
+    """Deletes a message from Supabase and local storage."""
+    deleted = False
+
+    if supabase_client:
+        try:
+            supabase_client.table("messages").delete().eq("id", msg_id).execute()
+            deleted = True
+        except Exception as e:
+            print(f"[!] Supabase delete message notice: {e}")
+
+    db = load_local_data()
     msgs = db.get("messages", [])
     filtered = [m for m in msgs if m.get("id") != msg_id]
     if len(filtered) != len(msgs):
         db["messages"] = filtered
-        save_data(db)
-        return True
-    return False
+        save_local_data(db)
+        deleted = True
+
+    return deleted

@@ -1,32 +1,53 @@
-# ⚡ Akhil Pandey - Python & FastAPI Portfolio with Full Admin CMS
+# ⚡ AutomateX - Python & FastAPI Portfolio with Full Admin CMS & Supabase
 
-> **Production-Grade FastAPI Web Application & Developer CMS**  
-> Engineered with **FastAPI**, **Pydantic**, **Jinja2 Templates**, **Uvicorn**, and **Vanilla CSS** with seamless Render Cloud deployment.
+> **Production-Grade FastAPI Web Application, Supabase Cloud Database & Developer CMS**  
+> Engineered by **Akhil Pandey** with **FastAPI**, **Supabase Cloud (PostgreSQL)**, **Pydantic**, **Jinja2 Templates**, **Uvicorn**, and **Vanilla CSS** with seamless Render Cloud deployment.
 
 ---
 
 ## 🌟 Key Features
 
-1. **Complete Admin CMS Control (`/admin`)**:
+1. **Supabase Cloud Database + Resilient JSON Fallback**:
+   - Connected directly to Supabase cloud PostgreSQL with real-time CRUD.
+   - Dual-mode architecture: seamlessly reads/writes to Supabase, with automatic zero-downtime fallback to local storage if offline or tables are pending.
+   - Includes complete `supabase_schema.sql` DDL script pre-seeded with all portfolio records and Row Level Security (RLS) policies.
+
+2. **Complete Admin CMS Control (`/admin`)**:
    - **PIN-Protected Authentication**: Default PIN is **`akhil123`** (can be updated anytime from the Profile tab).
    - **Everything is Editable**: Modify company names, roles, employment dates, responsibilities, degree titles, universities, percentages/grades, honors, skills, projects, and personal bio.
-   - **Separate Sections**: Work Experience and Education are completely separated in the database, API, Admin dashboard, and frontend display.
+   - **Dedicated Multi-Page Architecture**: Home (`/`), Work Experience (`/experience`), and Academic Background (`/education`) have dedicated, high-performance pages.
 
-2. **Compact Single-Box Skillset**:
-   - Clean, unified skillset view—no excessive progress bars.
+3. **Compact Single-Box Skillset**:
+   - Clean, unified skillset view—no unnecessary progress bars.
    - Skills can be edited in one textarea as comma-separated or newline values, rendering as stylish glowing chips.
 
-3. **PDF Resume Viewer & Uploader**:
+4. **PDF Resume Viewer & Uploader**:
    - **Browser PDF Viewer**: Accessible publicly at **`/resume`** (e.g., `http://localhost:8000/resume`).
    - **Backend Upload**: Admin can upload any updated `.pdf` resume directly from the Admin CMS (`📄 Resume PDF` tab) with instant server-side replacement.
 
-4. **Projects Showcase (Render Live & GitHub Repos)**:
+5. **Projects Showcase (Render Live & GitHub Repos)**:
    - Supports both **Live on Render** demo URLs (with a pulsing 🚀 "Live Demo" badge) and open-source **GitHub Repo** links.
    - If a project doesn't have a Render URL, it cleanly falls back to "📦 GitHub Only".
 
-5. **Client Inquiries & Live Ping**:
+6. **Client Inquiries & Live Ping**:
    - Working contact form sending inquiries directly to the backend database.
    - Interactive live API latency ping button demonstrating FastAPI's speed (10–20ms response time).
+
+---
+
+## 🗄️ Supabase Cloud Database Setup (1-Click)
+
+To connect your Supabase project:
+1. Open your [Supabase Dashboard](https://supabase.com/dashboard).
+2. Go to **SQL Editor** -> **New Query**.
+3. Copy and paste the entire contents of **`supabase_schema.sql`**.
+4. Click **Run**.
+   - This creates all tables (`profile`, `projects`, `experience`, `education`, `skills`, `messages`), enables RLS policies, and pre-seeds all data.
+5. In `.env` (or Render Environment Variables), set:
+   ```env
+   SUPABASE_URL=https://<your-project-ref>.supabase.co
+   SUPABASE_KEY=<your-secret-or-publishable-key>
+   ```
 
 ---
 
@@ -38,6 +59,8 @@ Double-click:
 
 This will automatically launch Uvicorn with hot-reload and open your browser:
 - **Live Portfolio**: `http://localhost:8000`
+- **Work Experience**: `http://localhost:8000/experience`
+- **Academic Background**: `http://localhost:8000/education`
 - **PDF Resume Viewer**: `http://localhost:8000/resume`
 - **Admin CMS Dashboard**: `http://localhost:8000/admin` *(Default PIN: `akhil123`)*
 - **Interactive Swagger Docs**: `http://localhost:8000/docs`
@@ -53,20 +76,14 @@ python -m uvicorn main:app --reload --port 8000
 
 1. Push this directory to your GitHub repository:
    ```bash
-   git init
    git add .
-   git commit -m "Deploy FastAPI Portfolio with Full Admin CMS"
-   git branch -M main
-   git remote add origin https://github.com/akhiil1/akhil-portfolio.git
-   git push -u origin main
+   git commit -m "Deploy FastAPI Portfolio with Supabase & Admin CMS"
+   git push origin main
    ```
-2. Log into [Render Dashboard](https://dashboard.render.com/) -> **New +** -> **Web Service**.
-3. Select your repository `akhil-portfolio`.
-4. Render will automatically detect `render.yaml` or use:
-   - **Runtime**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-5. Click **Deploy Web Service**!
+2. In your Render Dashboard, add the environment variables:
+   - `SUPABASE_URL`
+   - `SUPABASE_KEY`
+3. Click **Deploy Web Service**!
 
 ---
 
@@ -76,16 +93,19 @@ python -m uvicorn main:app --reload --port 8000
 d:\akhil-portfolio\
 ├── main.py                    # FastAPI Application & Uvicorn runner
 ├── models.py                  # Pydantic Schemas (Experience, Education, Skills, Profile, Projects)
-├── database.py                # Persistent JSON Database Manager & CRUD
+├── database.py                # Dual-mode Supabase Cloud + Local JSON Database Manager
+├── supabase_schema.sql        # Supabase DDL schema, RLS policies & seed dataset
 ├── start.bat                  # 1-Click Windows Launcher (uvicorn main:app --reload)
-├── requirements.txt           # Dependencies (fastapi, uvicorn, jinja2, pydantic, python-multipart)
+├── requirements.txt           # Dependencies (fastapi, uvicorn, supabase, python-dotenv, jinja2, pydantic)
 ├── Procfile                   # Process declaration for Render
 ├── render.yaml                # Render deployment blueprint
 ├── README.md                  # Documentation
 ├── data/
-│   └── portfolio.json         # Master JSON Database
+│   └── portfolio.json         # Master Local JSON Database Backup
 ├── templates/
 │   ├── index.html             # Client-facing Portfolio Template
+│   ├── experience.html        # Dedicated Work Experience Template
+│   ├── education.html         # Dedicated Academic Background Template
 │   └── admin.html             # Full Admin CMS Dashboard Template
 └── static/
     ├── css/
