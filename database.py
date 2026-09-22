@@ -342,7 +342,7 @@ def get_projects() -> List[Dict[str, Any]]:
     if supabase_client:
         try:
             res = supabase_client.table("projects").select("*").order("created_at", desc=True).execute()
-            if res.data is not None and len(res.data) > 0:
+            if res.data is not None:
                 return res.data
         except Exception:
             pass
@@ -497,7 +497,7 @@ def get_experience() -> List[Dict[str, Any]]:
     if supabase_client:
         try:
             res = supabase_client.table("experience").select("*").order("created_at", desc=True).execute()
-            if res.data is not None and len(res.data) > 0:
+            if res.data is not None:
                 return res.data
         except Exception:
             pass
@@ -621,7 +621,7 @@ def get_education() -> List[Dict[str, Any]]:
     if supabase_client:
         try:
             res = supabase_client.table("education").select("*").order("created_at", desc=False).execute()
-            if res.data is not None and len(res.data) > 0:
+            if res.data is not None:
                 return res.data
         except Exception:
             pass
@@ -848,7 +848,7 @@ def get_messages() -> List[Dict[str, Any]]:
     if supabase_client:
         try:
             res = supabase_client.table("messages").select("*").order("created_at", desc=True).execute()
-            if res.data is not None and len(res.data) > 0:
+            if res.data is not None:
                 return res.data
         except Exception:
             pass
