@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutomateX | {{ profile.name }} - {{ profile.role_title }}</title>
+  <meta name="description" content="{{ profile.short_bio }}">
+  <meta name="author" content="{{ profile.name }}">
+  <meta property="og:title" content="AutomateX - Scalable Backend APIs &amp; Automation by {{ profile.name }}">
+  <meta property="og:description" content="{{ profile.short_bio }}">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Background Canvas & Ambient Mesh -->
+  <canvas id="particles-canvas"></canvas>
+  <div class="ambient-mesh-1"></div>
+  <div class="ambient-mesh-2"></div>
+
+  <div class="content-wrap">
+
+    <!-- Header Navbar -->
+    <header class="navbar">
+      <div class="container nav-container">
+        <a href="/" class="brand-logo">
+          <div class="brand-avatar">
+            <img src="/static/images/logo.svg" alt="AutomateX Logo" class="brand-logo-icon">
+          </div>
+          <div>
+            <span>Automate<span class="gradient-text">X</span></span>
+          </div>
+        </a>
+
+        <ul class="nav-links" id="nav-links">
+          <li><a href="/#hero" class="nav-link active">Home</a></li>
+          <li><a href="/#projects" class="nav-link">Projects</a></li>
+          <li><a href="/experience" class="nav-link">Work Experience</a></li>
+          <li><a href="/education" class="nav-link">Academic Background</a></li>
+          <!-- Hidden per user request: Services, Skills, Contact -->
+          <!--
+          <li><a href="/#services" class="nav-link">Services</a></li>
+          <li><a href="/#skills" class="nav-link">Skills</a></li>
+          <li><a href="/#contact" class="nav-link">Contact</a></li>
+          -->
+        </ul>
+
+        <div class="nav-actions">
+          <!-- Hidden per user request: Resume & Admin -->
+          <!--
+          <a href="/resume" target="_blank" class="btn btn-sm btn-emerald" title="View PDF Resume in Browser">
+            <span>📄 Resume</span>
+          </a>
+          <a href="/admin" class="btn btn-sm btn-secondary" title="Admin CMS Portal">
+            <span>⚙️ Admin</span>
+          </a>
+          -->
+          <a href="/#contact" class="btn-hire-me" id="nav-hire-btn">
+            <span class="hire-icon">⚡</span>
+            <span class="hire-text">Hire Me</span>
+            <span class="hire-arrow">→</span>
+          </a>
+          <button class="mobile-nav-toggle" id="mobile-nav-toggle" aria-label="Toggle Navigation">☰</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- Hero Section -->
+      <section class="hero-section" id="hero">
+        <div class="container">
+          <div class="hero-grid">
+            <!-- Left Hero Content -->
+            <div>
+              <div style="margin-bottom: 20px;">
+                <div class="availability-pill">
+                  <span class="status-dot-pulse"></span>
+                  <span>{{ profile.status_badge }}</span>
+                </div>
+              </div>
+
+              <h1 class="hero-title">
+                Architecting <span class="gradient-text">Scalable APIs</span> &amp; Automated Systems
+              </h1>
+
+              <div class="hero-chips-wrap">
+                <span class="tech-chip highlight">🐍 Python</span>
+                <span class="tech-chip highlight">⚡ FastAPI</span>
+                <span class="tech-chip highlight">🎸 Django</span>
+                <span class="tech-chip">🤖 n8n &amp; Zapier</span>
+                <span class="tech-chip">🚀 Render Cloud</span>
+                <span class="tech-chip">🐘 PostgreSQL</span>
+              </div>
+
+              <p class="hero-description">
+                MCA graduate from <strong>Nirma University</strong> with <strong>2+ years of professional IT experience</strong>. 
+                Specialized in building high-speed asynchronous REST APIs, customizing enterprise CRM workflows, 
+                and automating business operations to cut repetitive manual tasks by <strong>75%</strong>.
+              </p>
+
+              <div class="hero-cta-group">
+                <a href="#projects" class="btn btn-primary">
+                  <span>🚀 Explore Projects &amp; Live Demos</span>
+                </a>
+                <a href="/resume" target="_blank" class="btn btn-emerald">
+                  <span>📄 View Resume (PDF)</span>
+                </a>
+                <a href="#contact" class="btn btn-secondary">
+                  <span>📬 Discuss Project</span>
+                </a>
+              </div>
+
+              <div class="hero-trust-list">
+                <div class="trust-item"><span class="trust-check">✓</span> 2+ Years Professional IT Exp</div>
+                <div class="trust-item"><span class="trust-check">✓</span> 75% Manual Tasks Cut</div>
+                <div class="trust-item"><span class="trust-check">✓</span> Punctual &amp; Client-Centric</div>
+              </div>
+            </div>
+
+            <!-- Right Visual: Live Cloud Architecture & Automation Hub -->
+            <div>
+              <div class="cloud-hub-card">
+                <div class="hub-card-header">
+                  <div class="hub-title">
+                    <span>⚡</span>
+                    <span>Live Cloud Automation Hub</span>
+                  </div>
+                  <span class="render-live-chip">Hosted on Render</span>
+                </div>
+
+                <div class="hub-flow-list">
+                  <div class="hub-flow-item">
+                    <div class="hub-flow-icon blue">📥</div>
+                    <div class="hub-flow-text">
+                      <div class="hub-flow-heading">1. Intake &amp; Webhook Triggers</div>
+                      <div class="hub-flow-sub">Customer Forms, API Webhooks &amp; Leads</div>
+                    </div>
+                    <div class="hub-flow-status">Real-time</div>
+                  </div>
+
+                  <div class="hub-flow-item">
+                    <div class="hub-flow-icon green">⚙️</div>
+                    <div class="hub-flow-text">
+                      <div class="hub-flow-heading">2. FastAPI &amp; Schema Validation</div>
+                      <div class="hub-flow-sub">Strict Pydantic models, async routing &amp; SQL</div>
+                    </div>
+                    <div class="hub-flow-status">12ms Latency</div>
+                  </div>
+
+                  <div class="hub-flow-item">
+                    <div class="hub-flow-icon cyan">🤖</div>
+                    <div class="hub-flow-text">
+                      <div class="hub-flow-heading">3. Multi-Channel Automation</div>
+                      <div class="hub-flow-sub">n8n / Zapier CRM Sync &amp; Email Dispatch</div>
+                    </div>
+                    <div class="hub-flow-status">Automated</div>
+                  </div>
+
+                  <div class="hub-flow-item">
+                    <div class="hub-flow-icon purple">📊</div>
+                    <div class="hub-flow-text">
+                      <div class="hub-flow-heading">4. Real-Time Audit Reporting</div>
+                      <div class="hub-flow-sub">Enterprise clean records &amp; notifications</div>
+                    </div>
+                    <div class="hub-flow-status">Verified</div>
+                  </div>
+                </div>
+
+                <div class="hub-card-footer">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: var(--emerald-light); font-weight: 700;">● System Uptime 99.98%</span>
+                  </div>
+                  <button type="button" class="test-ping-btn" id="hub-ping-btn" onclick="testLiveApiPing()">
+                    ⚡ Test Live API Ping
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats Strip -->
+          <div class="stats-strip">
+            {% for s in profile.stats %}
+            <div class="stat-item">
+              <div class="stat-number">{{ s.value }}</div>
+              <div class="stat-label">{{ s.label }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <!-- Services Section (What I Bring to Your Business) -->
+      <section id="services">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-badge">Client Solutions</span>
+            <h2 class="section-title">How I Help Businesses <span class="gradient-text">Grow</span></h2>
+            <p class="section-subtitle">
+              Whether you need to eliminate repetitive manual operations or engineer high-throughput web backends, 
+              here is how I deliver measurable results.
+            </p>
+          </div>
+
+          <div class="services-grid">
+            {% for srv in services %}
+            <div class="service-card">
+              <div class="service-icon-wrap {{ srv.color }}">{{ srv.icon }}</div>
+              <h3 class="service-title">{{ srv.title }}</h3>
+              <p class="service-desc">{{ srv.desc }}</p>
+              <ul class="service-deliverables">
+                {% for d in srv.deliverables %}
+                <li>{{ d }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </section>
+
+      <!-- Projects Section (Live Render & GitHub Showcase) -->
+      <section id="projects">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-badge">Interactive Portfolio</span>
+            <h2 class="section-title">Featured Projects &amp; <span class="gradient-text">Live Demos</span></h2>
+            <p class="section-subtitle">
+              Hosted live on <strong>Render Cloud</strong> with interactive demos or inspectable on open-source <strong>GitHub</strong> repositories. 
+              Click any live link to test the deployment in action.
+            </p>
+          </div>
+
+          <!-- Controls: Live Search + Filter Pills -->
+          <div class="projects-controls">
+            <!-- Search Bar -->
+            <div class="projects-search-bar">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="project-search-input" class="search-input" placeholder="Search by tech or title (e.g. FastAPI, Render, CRM)...">
+            </div>
+
+            <!-- Filter Bar -->
+            <div class="projects-filter-bar">
+              <button class="filter-btn active" data-filter="all">
+                <span>All Projects</span>
+                <span class="filter-count">{{ projects|length }}</span>
+              </button>
+              <button class="filter-btn" data-filter="render">
+                <span>🚀 Live on Render</span>
+                <span class="filter-count">{{ projects|selectattr('has_render')|list|length }}</span>
+              </button>
+              <button class="filter-btn" data-filter="backend">
+                <span>⚡ FastAPI &amp; Python</span>
+                <span class="filter-count">{{ projects|selectattr('category', 'equalto', 'backend')|list|length }}</span>
+              </button>
+              <button class="filter-btn" data-filter="automation">
+                <span>🤖 Automation &amp; AI</span>
+                <span class="filter-count">{{ projects|selectattr('category', 'equalto', 'automation')|list|length }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Projects Grid -->
+          <div class="projects-grid" id="projects-grid">
+            {% for p in projects %}
+            <article class="project-card" 
+                     data-category="{{ p.category }}" 
+                     data-render="{{ 'true' if p.has_render else 'false' }}"
+                     data-search="{{ p.title|lower }} {{ p.description|lower }} {{ p.tech_stack|join(' ')|lower }}">
+              <div class="project-card-header">
+                <span class="project-category-badge">{{ p.category_label or p.category }}</span>
+                <div class="project-status-badge {{ 'live' if p.has_render else 'repo' }}">
+                  {% if p.has_render %}
+                  <span class="status-dot-pulse"></span><span>Live on Render</span>
+                  {% else %}
+                  <span>📦 GitHub Repo</span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <h3 class="project-title">{{ p.title }}</h3>
+              <p class="project-desc">{{ p.description }}</p>
+
+              <div class="project-tech-tags">
+                {% for tag in p.tech_stack %}
+                <span class="tech-tag">{{ tag }}</span>
+                {% endfor %}
+              </div>
+
+              <div class="project-actions">
+                {% if p.has_render and p.render_url %}
+                <a href="{{ p.render_url }}" target="_blank" rel="noopener noreferrer" class="action-launch-live">
+                  <span>🚀 View Live Demo</span>
+                </a>
+                {% endif %}
+
+                {% if p.github_url %}
+                <a href="{{ p.github_url }}" target="_blank" rel="noopener noreferrer" class="action-launch-code">
+                  <span>🐙 Source Code</span>
+                </a>
+                {% endif %}
+
+                {% if not p.has_render and not p.github_url %}
+                <span style="font-size: 0.85rem; color: var(--text-muted);">Enterprise Client Project</span>
+                {% endif %}
+              </div>
+            </article>
+            {% endfor %}
+          </div>
+
+          <!-- FastAPI Swagger Explorer Banner -->
+          <div class="swagger-banner">
+            <div>
+              <span class="swagger-badge">FastAPI Interactive Docs</span>
+              <h3 style="font-size: 1.45rem; margin-bottom: 6px;">Test the Live API Endpoints Directly</h3>
+              <p style="color: var(--text-secondary); font-size: 0.95rem; max-width: 600px;">
+                This portfolio is powered by a live, production-grade FastAPI server. You can inspect all OpenAPI schemas, test endpoints, and view interactive Swagger documentation right now.
+              </p>
+            </div>
+            <a href="/docs" target="_blank" class="btn btn-primary" style="background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);">
+              <span>⚡ Open Interactive Swagger (/docs)</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Career Journey Gateway Banner (Dedicated Pages) -->
+      <section class="career-gateway-section">
+        <div class="container">
+          <div class="career-gateway-card">
+            <div class="gateway-content">
+              <span class="section-badge">Career &amp; Credentials</span>
+              <h2 style="font-size: 1.85rem; font-weight: 700; margin-bottom: 10px; color: var(--text-white);">
+                Explore Akhil's Professional <span class="gradient-text">Journey</span>
+              </h2>
+              <p style="color: var(--text-secondary); font-size: 1rem; max-width: 620px; line-height: 1.65; margin: 0;">
+                Detailed timelines of 2+ years professional IT experience across IT companies and academic credentials from Nirma University.
+              </p>
+            </div>
+            
+            <div class="gateway-actions">
+              <a href="/experience" class="btn btn-secondary career-btn-action">
+                <span>💼 View Work Experience</span>
+                <span style="color: var(--emerald-light);">→</span>
+              </a>
+              <a href="/education" class="btn btn-secondary career-btn-action">
+                <span>🎓 Academic Background</span>
+                <span style="color: var(--cyan);">→</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Skills Section (Compact, Single-Box Layout as requested!) -->
+      <section id="skills">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-badge">Technical Arsenal</span>
+            <h2 class="section-title">Core Technical <span class="gradient-text">Skillset</span></h2>
+            <p class="section-subtitle">
+              Technologies, languages, and tools utilized across production backends and automated workflows.
+            </p>
+          </div>
+
+          <!-- Single Box Compact Container -->
+          <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 36px; backdrop-filter: blur(20px); max-width: 960px; margin-inline: auto; box-shadow: var(--shadow-md);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle); flex-wrap: wrap; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; color: var(--text-white);">
+                <span>⚡</span>
+                <span>Active Tools &amp; Technologies</span>
+              </div>
+              <span style="font-family: var(--font-code); font-size: 0.8rem; color: var(--primary-light); background: rgba(99, 102, 241, 0.15); padding: 4px 10px; border-radius: var(--radius-full);">
+                {{ skills|length }} Competencies
+              </span>
+            </div>
+
+            <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+              {% for skill in skills %}
+              <div class="tech-chip highlight" style="font-size: 0.92rem; padding: 8px 16px;">
+                <span>•</span>
+                <span>{{ skill }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Contact Section -->
+      <section id="contact">
+        <div class="container">
+          <div class="section-header">
+            <span class="section-badge">Get In Touch</span>
+            <h2 class="section-title">Let's Discuss Your Next <span class="gradient-text">Project</span></h2>
+            <p class="section-subtitle">
+              Looking for a backend engineer or want to automate business workflows? Send an inquiry or reach out directly.
+            </p>
+          </div>
+
+          <div class="contact-grid">
+            <!-- Info Card -->
+            <div class="contact-info-card">
+              <div class="contact-method-item">
+                <div class="contact-method-icon">📧</div>
+                <div class="contact-method-details">
+                  <h4>Email</h4>
+                  <a href="mailto:{{ profile.email }}" class="contact-method-link">
+                    {{ profile.email }}
+                  </a>
+                </div>
+              </div>
+
+              <div class="contact-method-item">
+                <div class="contact-method-icon">📱</div>
+                <div class="contact-method-details">
+                  <h4>Phone / WhatsApp</h4>
+                  <a href="tel:{{ profile.phone|replace(' ', '') }}" class="contact-method-link">
+                    {{ profile.phone }}
+                  </a>
+                </div>
+              </div>
+
+              <div class="contact-method-item">
+                <div class="contact-method-icon">📍</div>
+                <div class="contact-method-details">
+                  <h4>Location</h4>
+                  <span style="font-weight: 600; color: #f8fafc;">
+                    {{ profile.location }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="contact-method-item">
+                <div class="contact-method-icon">📄</div>
+                <div class="contact-method-details">
+                  <h4>Resume</h4>
+                  <a href="/resume" target="_blank" class="contact-method-link" style="color: var(--emerald-light);">
+                    View Akhil_Pandey_Resume.pdf ↗
+                  </a>
+                </div>
+              </div>
+
+              <div style="padding-top: 14px; border-top: 1px solid var(--border-subtle); display: flex; gap: 12px;">
+                <a href="{{ profile.linkedin }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex: 1;">
+                  <span>LinkedIn</span>
+                </a>
+                <a href="{{ profile.github }}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="flex: 1;">
+                  <span>GitHub</span>
+                </a>
+              </div>
+            </div>
+
+            <!-- Contact Form -->
+            <div class="contact-form-card">
+              <form id="fastapi-contact-form">
+                <div class="form-group">
+                  <label for="contact-name" class="form-label">Your Name</label>
+                  <input type="text" id="contact-name" name="name" class="form-input" placeholder="e.g. Ramesh Patel" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="contact-email" class="form-label">Email Address</label>
+                  <input type="email" id="contact-email" name="email" class="form-input" placeholder="e.g. ramesh@company.com" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="contact-subject" class="form-label">Subject / Purpose</label>
+                  <input type="text" id="contact-subject" name="subject" class="form-input" placeholder="e.g. Workflow Automation / Python Developer Position" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="contact-message" class="form-label">Inquiry Details</label>
+                  <textarea id="contact-message" name="message" class="form-textarea" placeholder="Briefly describe what you'd like to build or automate..." required></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;" id="contact-submit-btn">
+                  <span>🚀 Send Inquiry</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-top">
+          <div class="footer-brand">
+            <a href="/" class="brand-logo">
+              <div class="brand-avatar">
+                <img src="/static/images/logo.svg" alt="AutomateX Logo" class="brand-logo-icon">
+              </div>
+              <span>Automate<span class="gradient-text">X</span></span>
+            </a>
+            <p class="footer-tagline">Engineered by {{ profile.name }} • FastAPI &amp; Python Developer • Workflow Automation</p>
+          </div>
+
+          <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+            <a href="/resume" target="_blank" class="btn btn-sm btn-emerald">
+              <span>📄 Download Resume (PDF)</span>
+            </a>
+            <a href="/admin" class="admin-portal-link">
+              <span>⚙️</span> Admin CMS Portal
+            </a>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <p>© <span id="current-year">2026</span> AutomateX • {{ profile.name }}. Built with FastAPI &amp; Python.</p>
+          <p>Hosted on Render Cloud</p>
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="/static/js/main.js"></script>
+</body>
+</html>

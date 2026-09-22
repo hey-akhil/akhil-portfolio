@@ -1,0 +1,273 @@
+{
+  "profile": {
+    "name": "Akhil Pandey",
+    "brand": "AutomateX",
+    "roleTitle": "Backend Developer & Automation Specialist",
+    "tagline": "Software Developer | Python & FastAPI | Workflow Automation",
+    "shortBio": "MCA graduate with 2+ years of professional experience in IT, process automation, and scalable backend architecture. Specialized in Python, FastAPI, and enterprise workflows.",
+    "about": "I am a backend-oriented Software Developer with hands-on expertise in architecting high-performance REST APIs, automating mission-critical business workflows (n8n, Make.com, Zapier), and managing structured database environments. Experienced at coordinating with cross-functional teams and clients, resolving queries with agility, and deploying live production services on Render and Docker.",
+    "email": "akhil.pandeyy1@gmail.com",
+    "altEmail": "automatex.developer@gmail.com",
+    "phone": "+91 76003 47544",
+    "location": "Navsari, Gujarat, India - 396445",
+    "github": "https://github.com/akhiil1",
+    "linkedin": "https://linkedin.com/in/akhiil1",
+    "adminPin": "akhil123",
+    "statusBadge": "Available for Opportunities",
+    "stats": [
+      {
+        "label": "Years Experience",
+        "value": "2+"
+      },
+      {
+        "label": "Manual Effort Cut",
+        "value": "75%"
+      },
+      {
+        "label": "APIs & Workflows Built",
+        "value": "30+"
+      },
+      {
+        "label": "State Merit Rank",
+        "value": "65th"
+      }
+    ],
+    "strengths": [
+      {
+        "title": "Team Supervision & Leadership",
+        "desc": "Proven track record assigning tasks, tracking progress, and delivering milestones on time. Served as Vice President of the Association of MCA Students."
+      },
+      {
+        "title": "Public Dealing & Query Resolution",
+        "desc": "Experienced in interacting professionally with visitors, clients, and team members; understanding operational bottlenecks and resolving them swiftly."
+      },
+      {
+        "title": "Computer Proficiency & Work Ethic",
+        "desc": "Strong grip on data systems, clean validation, audit-ready reporting, and modern DevOps tools. Punctual, dependable, and highly adaptable."
+      }
+    ],
+    "resume_url": "/resume",
+    "role_title": "Python Developer",
+    "status_badge": "Available",
+    "admin_pin": "akhil123"
+  },
+  "skills": [
+    "Python",
+    "FastAPI",
+    "Django",
+    "RESTful APIs & Microservices",
+    "PostgreSQL",
+    "MySQL",
+    "SQLite",
+    "Redis Caching",
+    "n8n Workflow Automation",
+    "Zapier",
+    "Make.com",
+    "RPA Automation",
+    "Docker & Containers",
+    "Render Cloud Deployment",
+    "Git & GitHub",
+    "Postman API Testing",
+    "AI & LLM Integrations",
+    "JavaScript & HTML/CSS"
+  ],
+  "projects": [
+    {
+      "id": "proj-1",
+      "title": "AutomateX API Gateway & Workflow Orchestrator",
+      "category": "backend",
+      "categoryLabel": "Backend & APIs",
+      "featured": true,
+      "description": "High-throughput asynchronous REST API built with FastAPI, PostgreSQL, and Redis. Features automated webhook ingestion, retry mechanisms, and rate-limited endpoints. Deployed live on Render.",
+      "techStack": [
+        "Python",
+        "FastAPI",
+        "PostgreSQL",
+        "Redis",
+        "Docker",
+        "Render"
+      ],
+      "githubUrl": "https://github.com/akhiil1/automatex-api-gateway",
+      "renderUrl": "https://automatex-api-gateway.onrender.com",
+      "hasRender": true,
+      "status": "Live on Render",
+      "date": "2025"
+    },
+    {
+      "id": "proj-2",
+      "title": "AI-Powered Customer CRM & Automated Leads Engine",
+      "category": "automation",
+      "categoryLabel": "Workflow Automation",
+      "featured": true,
+      "description": "Custom CRM engine engineered for rapid client query intake, automated email alerts, and multi-step webhook sync between forms, database, and notification channels. Hosted live on Render.",
+      "techStack": [
+        "Python",
+        "Django",
+        "N8N",
+        "Zapier",
+        "REST APIs",
+        "Render"
+      ],
+      "githubUrl": "https://github.com/akhiil1/ai-leads-crm-automation",
+      "renderUrl": "https://leads-crm-engine.onrender.com",
+      "hasRender": true,
+      "status": "Live on Render",
+      "date": "2025"
+    },
+    {
+      "id": "proj-3",
+      "title": "Smart Document Data Extraction & OCR Pipeline",
+      "category": "automation",
+      "categoryLabel": "Automation & AI",
+      "featured": true,
+      "description": "Automated OCR extraction pipeline that reads invoices and vouchers, executes strict mathematical validation rules, and saves structured records into databases.",
+      "techStack": [
+        "Python",
+        "OpenCV",
+        "FastAPI",
+        "Make.com",
+        "SQL"
+      ],
+      "githubUrl": "https://github.com/akhiil1/doc-extractor-pipeline",
+      "renderUrl": "",
+      "hasRender": false,
+      "status": "GitHub Repo",
+      "date": "2024"
+    },
+    {
+      "id": "proj-4",
+      "title": "Scalable Authentication & Microservices Boilerplate",
+      "category": "backend",
+      "categoryLabel": "Microservices",
+      "featured": false,
+      "description": "Production-ready template for microservices architecture featuring JWT authentication, role-based access control (RBAC), rate-limiting middleware, and health-check monitoring.",
+      "techStack": [
+        "Python",
+        "FastAPI",
+        "JWT",
+        "Docker",
+        "PostgreSQL",
+        "Render"
+      ],
+      "githubUrl": "https://github.com/akhiil1/fastapi-auth-microservices",
+      "renderUrl": "https://fastapi-microservices-demo.onrender.com",
+      "hasRender": true,
+      "status": "Live on Render",
+      "date": "2024"
+    },
+    {
+      "id": "proj-5",
+      "title": "RPA Financial Reconciliation & Reporting Bot",
+      "category": "automation",
+      "categoryLabel": "RPA Automation",
+      "featured": false,
+      "description": "Automated desktop & web scraping bot to match bank receipts with internal ledger records, generating audit-ready Excel reports and notifying stakeholders on Slack/Email.",
+      "techStack": [
+        "Python",
+        "Pandas",
+        "Zapier",
+        "Office 365"
+      ],
+      "githubUrl": "https://github.com/akhiil1/rpa-finance-reconciler",
+      "renderUrl": "",
+      "hasRender": false,
+      "status": "GitHub Repo",
+      "date": "2024"
+    }
+  ],
+  "experience": [
+    {
+      "id": "exp-1",
+      "role": "Python Developer",
+      "company": "Digipie Technologies",
+      "location": "Surat, Gujarat",
+      "period": "Jul 2025 – Present",
+      "type": "Full-Time",
+      "badge": "Current Role",
+      "points": [
+        "Architecting robust backend APIs using Python (FastAPI & Django); coordinating closely with cross-functional teams and clients to resolve queries and deliver milestones on time.",
+        "Automating routine office workflows using Make.com, Zapier, and N8N, slashing manual operational effort and error rates.",
+        "Performing strict data validation and consistency checks; identifying root causes of data issues and maintaining audit-ready records and reports."
+      ]
+    },
+    {
+      "id": "exp-2",
+      "role": "Software Developer",
+      "company": "Biztechnosys Infotech Pvt Ltd",
+      "location": "Bangalore, Karnataka",
+      "period": "Jul 2024 – Jun 2025",
+      "type": "Full-Time",
+      "badge": "Completed",
+      "points": [
+        "Interacted directly with enterprise clients to map business workflows and customized CRM software matching exact day-to-day operational requirements.",
+        "Maintained structured schemas, rigorous validation rules, and automated reporting formats to keep enterprise records clean and audit-ready.",
+        "Significantly improved turnaround time of backend data processes through proactive coordination, query optimization, and follow-ups."
+      ]
+    },
+    {
+      "id": "exp-3",
+      "role": "RPA Developer (Internship)",
+      "company": "1Rivet India LLP",
+      "location": "Valsad, Gujarat",
+      "period": "Feb 2024 – Jun 2024",
+      "type": "Internship",
+      "badge": "Internship",
+      "points": [
+        "Identified repetitive manual tasks in office workflows and engineered automated RPA bots, vastly enhancing operational throughput.",
+        "Collaborated with senior engineers to track, benchmark, and report runtime performance gains of automated processes."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "id": "edu-1",
+      "degree": "Master of Computer Application (MCA)",
+      "institution": "Institute of Technology, Nirma University",
+      "location": "Ahmedabad, Gujarat",
+      "period": "2022 – 2024",
+      "grade": "78.60%",
+      "highlights": "Served as Vice President of Association of MCA Students (AMS); Secured 65th Rank in national-level ACPC-CMAT entrance exam."
+    },
+    {
+      "id": "edu-2",
+      "degree": "Bachelor of Computer Application (BCA)",
+      "institution": "Naran Lala College of Professional & Applied Sciences",
+      "location": "Navsari, Gujarat",
+      "period": "2019 – 2022",
+      "grade": "80.40%",
+      "highlights": "Core specialization in Algorithms, Database Systems, Object-Oriented Software Design, and Web Applications."
+    },
+    {
+      "id": "edu-3",
+      "degree": "Higher Secondary (HSC) & Secondary (SSC)",
+      "institution": "Navchetan High School",
+      "location": "Navsari, Gujarat",
+      "period": "2017 – 2019",
+      "grade": "HSC: 70.26% | SSC: 66.00%",
+      "highlights": "Science and Computer foundation with distinction in practical coursework."
+    }
+  ],
+  "achievements": [
+    {
+      "title": "Vice President – Association of MCA Students (AMS)",
+      "organization": "Nirma University (2022–2023)",
+      "description": "Led the student body of 120+ postgraduates, organized technical hackathons and cultural conclaves, and acted as the primary bridge between students and departmental faculty."
+    },
+    {
+      "title": "Rank 65th in ACPC-CMAT",
+      "organization": "National Level Entrance Examination",
+      "description": "Secured top 65th All-State merit rank among thousands of aspirants for prestigious MCA admissions across Gujarat."
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg-1790105680780",
+      "name": "Hii",
+      "email": "kd108080@gmail.com",
+      "subject": "aaa",
+      "message": "aaaa",
+      "date": "23 Sep 2026, 01:04 AM",
+      "read": false
+    }
+  ]
+}

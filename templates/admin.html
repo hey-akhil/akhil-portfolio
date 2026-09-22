@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin CMS | AutomateX - {{ profile.name }}</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
+
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/admin.css">
+</head>
+<body class="admin-body">
+
+  <!-- PIN Lock Screen Overlay -->
+  <div class="admin-lock-modal" id="admin-lock-modal" style="display: {{ 'none' if authenticated else 'flex' }};">
+    <div class="lock-card">
+      <div class="lock-icon">🔒</div>
+      <h2 class="lock-title">Admin Dashboard</h2>
+      <p class="lock-subtitle">Enter your Admin PIN to manage projects, experience, skills, and resume.</p>
+      
+      <div class="pin-input-group">
+        <input type="password" id="admin-pin-input" class="pin-input" placeholder="••••" maxlength="12" autocomplete="off">
+        <div id="auth-error-msg" style="color: #ef4444; font-size: 0.88rem; margin-top: 8px; display: none;"></div>
+      </div>
+
+      <button type="button" class="btn btn-primary" id="admin-unlock-btn" style="width: 100%;">
+        <span>⚡ Unlock Dashboard</span>
+      </button>
+
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 16px;">
+        Default Passcode PIN: <strong style="color: var(--emerald-light); font-family: 'JetBrains Mono';">akhil123</strong>
+      </p>
+    </div>
+  </div>
+
+  <!-- Admin Navbar -->
+  <header class="admin-navbar">
+    <div class="admin-nav-left">
+      <a href="/" class="brand-logo" style="text-decoration: none;">
+        <div class="brand-avatar">
+          <img src="/static/images/logo.svg" alt="AutomateX Logo" class="brand-logo-icon">
+        </div>
+        <span style="font-size: 1.15rem;">Automate<span class="gradient-text">X</span></span>
+      </a>
+      <span class="admin-badge">FastAPI CMS</span>
+    </div>
+
+    <div class="admin-nav-right">
+      <a href="/resume" target="_blank" class="btn btn-sm btn-emerald">
+        <span>📄 View Resume PDF</span>
+      </a>
+      <a href="/" class="btn btn-sm btn-secondary" target="_blank">
+        <span>🌐 View Live Site</span>
+      </a>
+      <button class="btn btn-sm btn-secondary" id="admin-logout-btn">
+        <span>🚪 Logout</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Admin Main Dashboard -->
+  <main class="admin-container">
+
+    <!-- Navigation Tabs -->
+    <nav class="admin-tabs">
+      <button class="admin-tab-btn active" data-tab="projects">
+        <span>📦 Projects ({{ projects|length }})</span>
+      </button>
+      <button class="admin-tab-btn" data-tab="experience">
+        <span>💼 Experience ({{ experience|length }})</span>
+      </button>
+      <button class="admin-tab-btn" data-tab="education">
+        <span>🎓 Education ({{ education|length }})</span>
+      </button>
+      <button class="admin-tab-btn" data-tab="skills">
+        <span>⚡ Skills ({{ skills|length }})</span>
+      </button>
+      <button class="admin-tab-btn" data-tab="resume">
+        <span>📄 Resume PDF</span>
+      </button>
+      <button class="admin-tab-btn" data-tab="profile">
+        <span>👤 Profile &amp; PIN</span>
+      </button>
+      <button class="admin-tab-btn" data-tab="messages">
+        <span>📬 Inquiries</span>
+        <span class="tab-badge" id="unread-msg-badge">{{ messages|rejectattr('read')|list|length }}</span>
+      </button>
+    </nav>
+
+    <!-- ===================================================================== -->
+    <!-- Tab 1: Projects Manager -->
+    <!-- ===================================================================== -->
+    <section class="admin-tab-content" id="tab-projects">
+      <div class="tab-content-header">
+        <div>
+          <h2>Projects Management</h2>
+          <p style="color: var(--text-secondary); font-size: 0.94rem;">
+            Add, edit, or delete projects. Attach Render Live URL for live interactive previews or keep as GitHub only.
+          </p>
+        </div>
+        <button class="btn btn-primary" id="open-add-project-modal">
+          <span>+ Add New Project</span>
+        </button>
+      </div>
+
+      <div class="admin-projects-grid">
+        {% for p in projects %}
+        <div class="admin-project-card" id="card-proj-{{ p.id }}">
+          <div class="admin-card-top">
+            <span class="render-badge-tag {{ 'has-render' if p.has_render else 'no-render' }}">
+              {{ '🚀 Hosted on Render' if p.has_render else '📦 GitHub Only' }}
+            </span>
+            <div class="admin-card-actions">
+              <button class="action-btn-icon edit" onclick="openEditProject('{{ p.id }}')" title="Edit Project">✏️</button>
+              <button class="action-btn-icon delete" onclick="deleteProject('{{ p.id }}')" title="Delete Project">🗑️</button>
+            </div>
+          </div>
+
+          <h3 class="admin-project-title">{{ p.title }}</h3>
+          <p class="admin-project-desc">{{ p.description }}</p>
+
+          <div class="admin-project-links">
+            <div class="admin-link-row">
+              <span style="color: var(--text-muted);">Render:</span>
+              {% if p.has_render and p.render_url %}
+              <a href="{{ p.render_url }}" target="_blank">{{ p.render_url }}</a>
+              {% else %}
+              <span style="color: #64748b;">Not configured (GitHub only)</span>
+              {% endif %}
+            </div>
+            <div class="admin-link-row">
+              <span style="color: var(--text-muted);">GitHub:</span>
+              {% if p.github_url %}
+              <a href="{{ p.github_url }}" target="_blank">{{ p.github_url }}</a>
+              {% else %}
+              <span style="color: #64748b;">Not configured</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            {% for tag in p.tech_stack %}
+            <span class="tech-tag">{{ tag }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- Tab 2: Work Experience Manager (Company, Role, Dates, Bullet points) -->
+    <!-- ===================================================================== -->
+    <section class="admin-tab-content" id="tab-experience" style="display: none;">
+      <div class="tab-content-header">
+        <div>
+          <h2>Work Experience Management</h2>
+          <p style="color: var(--text-secondary); font-size: 0.94rem;">
+            Edit company names, roles, employment dates, locations, and responsibility bullet points.
+          </p>
+        </div>
+        <button class="btn btn-primary" id="open-add-exp-modal">
+          <span>+ Add Work Experience</span>
+        </button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        {% for exp in experience %}
+        <div class="admin-project-card" id="card-exp-{{ exp.id }}">
+          <div class="admin-card-top">
+            <div>
+              <span class="tech-tag" style="background: rgba(99, 102, 241, 0.15); color: var(--primary-light);">{{ exp.badge }}</span>
+              <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 10px;">📅 {{ exp.period }} • 📍 {{ exp.location }}</span>
+            </div>
+            <div class="admin-card-actions">
+              <button class="action-btn-icon edit" onclick="openEditExperience('{{ exp.id }}')" title="Edit Experience">✏️</button>
+              <button class="action-btn-icon delete" onclick="deleteExperience('{{ exp.id }}')" title="Delete Experience">🗑️</button>
+            </div>
+          </div>
+
+          <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; color: var(--text-white);">
+            {{ exp.role }} <span style="color: var(--emerald-light); font-weight: 600;">@ {{ exp.company }}</span>
+          </h3>
+
+          <ul style="margin-top: 10px; padding-left: 20px; color: var(--text-secondary); font-size: 0.92rem; line-height: 1.6;">
+            {% for pt in exp.points %}
+            <li>{{ pt }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- Tab 3: Education Manager (Degree, Institution, Dates, Grade) -->
+    <!-- ===================================================================== -->
+    <section class="admin-tab-content" id="tab-education" style="display: none;">
+      <div class="tab-content-header">
+        <div>
+          <h2>Education &amp; Academic Qualifications</h2>
+          <p style="color: var(--text-secondary); font-size: 0.94rem;">
+            Edit your degrees, universities, percentage/CGPA, dates, and honors.
+          </p>
+        </div>
+        <button class="btn btn-primary" id="open-add-edu-modal">
+          <span>+ Add Education</span>
+        </button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 20px;">
+        {% for edu in education %}
+        <div class="admin-project-card" id="card-edu-{{ edu.id }}">
+          <div class="admin-card-top">
+            <div>
+              <span class="tech-tag" style="background: rgba(16, 185, 129, 0.15); color: var(--emerald-light);">Score: {{ edu.grade }}</span>
+              <span style="font-size: 0.85rem; color: var(--text-muted); margin-left: 10px;">📅 {{ edu.period }} • 📍 {{ edu.location }}</span>
+            </div>
+            <div class="admin-card-actions">
+              <button class="action-btn-icon edit" onclick="openEditEducation('{{ edu.id }}')" title="Edit Education">✏️</button>
+              <button class="action-btn-icon delete" onclick="deleteEducation('{{ edu.id }}')" title="Delete Education">🗑️</button>
+            </div>
+          </div>
+
+          <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; color: var(--text-white);">
+            {{ edu.degree }}
+          </h3>
+          <div style="color: var(--cyan); font-weight: 600; margin-bottom: 8px;">
+            {{ edu.institution }}
+          </div>
+
+          {% if edu.highlights %}
+          <p style="color: var(--text-secondary); font-size: 0.92rem; line-height: 1.6;">
+            {{ edu.highlights }}
+          </p>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- Tab 4: Technical Skills Manager (Single Compact Box as requested!) -->
+    <!-- ===================================================================== -->
+    <section class="admin-tab-content" id="tab-skills" style="display: none;">
+      <div class="tab-content-header">
+        <div>
+          <h2>Manage Technical Skillset (Single Box)</h2>
+          <p style="color: var(--text-secondary); font-size: 0.94rem;">
+            Edit all your tools, languages, and frameworks in one clean, simple input. Separate each skill with a comma or new line.
+          </p>
+        </div>
+      </div>
+
+      <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 32px; max-width: 800px;">
+        <form id="fastapi-skills-form">
+          <div class="admin-form-group">
+            <label class="admin-form-label">Skills List (Comma-Separated)</label>
+            <textarea id="skills-input-textarea" class="admin-textarea" rows="6" placeholder="e.g. Python, FastAPI, Django, REST APIs, PostgreSQL, Docker, n8n, Zapier..." required>{{ skills|join(', ') }}</textarea>
+            <div class="admin-form-hint">
+              💡 Tip: Just add or remove any skill name separated by commas. It will automatically display as sleek chips on your portfolio!
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            <span>💾 Save Skills List</span>
+          </button>
+        </form>
+
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--border-subtle);">
+          <h4 style="font-size: 1rem; margin-bottom: 12px; color: var(--text-white);">Live Chips Preview:</h4>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px;" id="skills-preview-chips">
+            {% for sk in skills %}
+            <span class="tech-chip highlight">{{ sk }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- Tab 5: PDF Resume Upload & Viewer Manager -->
+    <!-- ===================================================================== -->
+    <section class="admin-tab-content" id="tab-resume" style="display: none;">
+      <div class="tab-content-header">
+        <div>
+          <h2>PDF Resume Upload &amp; Viewer</h2>
+          <p style="color: var(--text-secondary); font-size: 0.94rem;">
+            Upload your latest PDF resume. Visitors and recruiters can view it directly in the browser via the <strong>/resume</strong> link!
+          </p>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 26px;">
+        <!-- Status & View Card -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 32px;">
+          <h3 style="font-size: 1.25rem; margin-bottom: 12px; color: var(--emerald-light);">
+            <span>📄</span> Current Live Resume
+          </h3>
+          
+          <div style="background: rgba(0, 0, 0, 0.4); border-radius: var(--radius-md); padding: 18px; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="color: var(--text-muted);">Status:</span>
+              <span style="color: var(--emerald-light); font-weight: 700;">
+                {{ '● Active & Live' if resume_exists else '○ Not Uploaded' }}
+              </span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+              <span style="color: var(--text-muted);">File Size:</span>
+              <span style="color: var(--text-white); font-family: var(--font-code);">{{ resume_size_kb }} KB</span>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: var(--text-muted);">Public Link:</span>
+              <a href="/resume" target="_blank" style="color: var(--cyan); font-family: var(--font-code);">http://localhost:8000/resume</a>
+            </div>
+          </div>
+
+          <a href="/resume" target="_blank" class="btn btn-emerald" style="width: 100%;">
+            <span>👁️ Open &amp; Preview PDF in Browser</span>
+          </a>
+        </div>
+
+        <!-- Upload New PDF Card -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 32px;">
+          <h3 style="font-size: 1.25rem; margin-bottom: 12px; color: var(--primary-light);">
+            <span>📤</span> Upload New PDF Resume
+          </h3>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; margin-bottom: 20px;">
+            Select a <code>.pdf</code> file from your computer to replace the existing resume on the server.
+          </p>
+
+          <form id="fastapi-resume-upload-form">
+            <div class="admin-form-group">
+              <input type="file" id="resume-file-input" accept=".pdf" class="admin-input" style="padding: 10px;" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="upload-resume-btn" style="width: 100%;">
+              <span>🚀 Upload &amp; Update Live Resume</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- Tab 6: Profile & Security PIN -->
+    <!-- ===================================================================== -->
+    <section class="admin-tab-content" id="tab-profile" style="display: none;">
+      <div class="tab-content-header">
+        <div>
+          <h2>Profile &amp; Security Settings</h2>
+          <p style="color: var(--text-secondary); font-size: 0.94rem;">
+            Edit full name, headline, contact numbers, social handles, and admin passcode PIN.
+          </p>
+        </div>
+      </div>
+
+      <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: var(--radius-lg); padding: 32px; max-width: 800px;">
+        <form id="fastapi-profile-form">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="admin-form-group">
+              <label class="admin-form-label">Full Name</label>
+              <input type="text" id="profile-name" class="admin-input" value="{{ profile.name }}" required>
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-form-label">Brand Name</label>
+              <input type="text" id="profile-brand" class="admin-input" value="{{ profile.brand or 'AutomateX' }}" required>
+            </div>
+          </div>
+
+          <div class="admin-form-group">
+            <label class="admin-form-label">Headline / Role Title</label>
+            <input type="text" id="profile-role" class="admin-input" value="{{ profile.role_title }}" required>
+          </div>
+
+          <div class="admin-form-group">
+            <label class="admin-form-label">Hero Tagline</label>
+            <input type="text" id="profile-tagline" class="admin-input" value="{{ profile.tagline }}" required>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="admin-form-group">
+              <label class="admin-form-label">Email Address</label>
+              <input type="email" id="profile-email" class="admin-input" value="{{ profile.email }}" required>
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-form-label">Phone Number</label>
+              <input type="text" id="profile-phone" class="admin-input" value="{{ profile.phone }}" required>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="admin-form-group">
+              <label class="admin-form-label">Location</label>
+              <input type="text" id="profile-location" class="admin-input" value="{{ profile.location }}" required>
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-form-label">Status Availability Badge</label>
+              <input type="text" id="profile-status" class="admin-input" value="{{ profile.status_badge }}" required>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="admin-form-group">
+              <label class="admin-form-label">GitHub URL</label>
+              <input type="url" id="profile-github" class="admin-input" value="{{ profile.github }}" required>
+            </div>
+            <div class="admin-form-group">
+              <label class="admin-form-label">LinkedIn URL</label>
+              <input type="url" id="profile-linkedin" class="admin-input" value="{{ profile.linkedin }}" required>
+            </div>
+          </div>
+
+          <div class="admin-form-group">
+            <label class="admin-form-label">About / Bio Description</label>
+            <textarea id="profile-about" class="admin-textarea" rows="4" required>{{ profile.about }}</textarea>
+          </div>
+
+          <div class="admin-form-group">
+            <label class="admin-form-label">Admin Security Passcode PIN</label>
+            <input type="text" id="profile-pin" class="admin-input" value="{{ profile.admin_pin }}" style="font-family: var(--font-code); letter-spacing: 2px;" required>
+            <div class="admin-form-hint">Used to unlock this Admin CMS panel.</div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="margin-top: 12px;">
+            <span>💾 Save Profile Changes</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===================================================================== -->
+    <!-- Tab 7: Client Inquiries Inbox -->
+    <!-- ===================================================================== -->
+    <section class="admin-tab-content" id="tab-messages" style="display: none;">
+      <div class="tab-content-header">
+        <div>
+          <h2>Client Inquiries &amp; Recruiter Messages</h2>
+          <p style="color: var(--text-secondary); font-size: 0.94rem;">
+            Messages submitted by visitors through your portfolio contact form.
+          </p>
+        </div>
+      </div>
+
+      <div class="messages-list">
+        {% if messages %}
+        {% for m in messages %}
+        <div class="message-card {{ '' if m.read else 'unread' }}" id="msg-card-{{ m.id }}">
+          <div class="message-header">
+            <div>
+              <span class="sender-name">{{ m.name }}</span>
+              <span class="sender-meta"> &lt;{{ m.email }}&gt; • {{ m.date }}</span>
+            </div>
+            <div class="admin-card-actions">
+              <a href="mailto:{{ m.email }}?subject=Re: {{ m.subject }}" class="btn btn-sm btn-primary" target="_blank">
+                ✉️ Reply
+              </a>
+              <button class="action-btn-icon" onclick="toggleMessageRead('{{ m.id }}')" title="Toggle Read/Unread">
+                {{ '📩' if m.read else '📬' }}
+              </button>
+              <button class="action-btn-icon delete" onclick="deleteMessage('{{ m.id }}')" title="Delete Message">
+                🗑️
+              </button>
+            </div>
+          </div>
+          <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 6px; color: var(--primary-light);">
+            Subject: {{ m.subject }}
+          </div>
+          <div class="message-body">{{ m.message }}</div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+          <p>No messages received yet. When visitors fill the contact form, inquiries will appear here.</p>
+        </div>
+        {% endif %}
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: Add / Edit Project -->
+  <!-- ===================================================================== -->
+  <div class="admin-modal-backdrop hidden" id="project-modal-backdrop">
+    <div class="admin-modal-card">
+      <div class="modal-header">
+        <h3 id="project-modal-title">Add New Project</h3>
+        <button type="button" class="close-modal-btn" onclick="closeModal('project-modal-backdrop')">✕</button>
+      </div>
+
+      <form id="project-modal-form">
+        <input type="hidden" id="modal-project-id" value="">
+
+        <div class="admin-form-group">
+          <label class="admin-form-label">Project Title *</label>
+          <input type="text" id="modal-project-title" class="admin-input" placeholder="e.g. FastAPI Distributed Task Queue" required>
+        </div>
+
+        <div class="admin-form-group">
+          <label class="admin-form-label">Category *</label>
+          <select id="modal-project-category" class="admin-select" required>
+            <option value="backend">Backend &amp; APIs</option>
+            <option value="automation">Workflow Automation &amp; AI</option>
+            <option value="microservices">Microservices Architecture</option>
+            <option value="fullstack">Full-Stack Application</option>
+          </select>
+        </div>
+
+        <div class="admin-form-group">
+          <label class="admin-form-label">What Does It Do? (Description) *</label>
+          <textarea id="modal-project-desc" class="admin-textarea" rows="3" placeholder="Briefly describe what this project does and the business value..." required></textarea>
+        </div>
+
+        <div class="admin-form-group">
+          <label class="admin-form-label">Tech Stack (comma-separated) *</label>
+          <input type="text" id="modal-project-tech" class="admin-input" placeholder="e.g. Python, FastAPI, Docker, PostgreSQL, Render" required>
+        </div>
+
+        <div class="admin-form-group">
+          <label class="admin-form-label">GitHub Repository URL (Optional)</label>
+          <input type="url" id="modal-project-github" class="admin-input" placeholder="https://github.com/akhiil1/my-project">
+        </div>
+
+        <div class="admin-form-group">
+          <label class="admin-form-label">Render Live URL (Optional)</label>
+          <input type="url" id="modal-project-render" class="admin-input" placeholder="https://my-service.onrender.com">
+          <div class="admin-form-hint">
+            💡 <strong>Render Note:</strong> If hosted on Render, paste its URL here. If not, leave blank and it will automatically show "GitHub Only"!
+          </div>
+        </div>
+
+        <div class="admin-form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+          <input type="checkbox" id="modal-project-has-render" style="width: 18px; height: 18px; accent-color: var(--emerald);">
+          <label for="modal-project-has-render" style="font-size: 0.92rem; cursor: pointer;">
+            Enable "Live on Render" Status Badge
+          </label>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('project-modal-backdrop')">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="save-project-btn">
+            <span>🚀 Save Project</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: Add / Edit Experience -->
+  <!-- ===================================================================== -->
+  <div class="admin-modal-backdrop hidden" id="exp-modal-backdrop">
+    <div class="admin-modal-card">
+      <div class="modal-header">
+        <h3 id="exp-modal-title">Add Work Experience</h3>
+        <button type="button" class="close-modal-btn" onclick="closeModal('exp-modal-backdrop')">✕</button>
+      </div>
+
+      <form id="exp-modal-form">
+        <input type="hidden" id="modal-exp-id" value="">
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="admin-form-group">
+            <label class="admin-form-label">Company Name *</label>
+            <input type="text" id="modal-exp-company" class="admin-input" placeholder="e.g. Digipie Technologies" required>
+          </div>
+          <div class="admin-form-group">
+            <label class="admin-form-label">Role Title *</label>
+            <input type="text" id="modal-exp-role" class="admin-input" placeholder="e.g. Python Developer" required>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="admin-form-group">
+            <label class="admin-form-label">Location *</label>
+            <input type="text" id="modal-exp-location" class="admin-input" placeholder="e.g. Surat, Gujarat" required>
+          </div>
+          <div class="admin-form-group">
+            <label class="admin-form-label">Period / Dates *</label>
+            <input type="text" id="modal-exp-period" class="admin-input" placeholder="e.g. Jul 2025 – Present" required>
+          </div>
+        </div>
+
+        <div class="admin-form-group">
+          <label class="admin-form-label">Employment Type / Badge</label>
+          <input type="text" id="modal-exp-badge" class="admin-input" placeholder="e.g. Current Role / Full-Time / Internship" value="Full-Time">
+        </div>
+
+        <div class="admin-form-group">
+          <label class="admin-form-label">Responsibilities / Bullet Points (One per line) *</label>
+          <textarea id="modal-exp-points" class="admin-textarea" rows="4" placeholder="• Engineered backend APIs using Python (FastAPI & Django)&#10;• Automated office workflows using n8n and Zapier&#10;• Performed data validation consistency checks" required></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('exp-modal-backdrop')">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <span>💾 Save Experience</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL: Add / Edit Education -->
+  <!-- ===================================================================== -->
+  <div class="admin-modal-backdrop hidden" id="edu-modal-backdrop">
+    <div class="admin-modal-card">
+      <div class="modal-header">
+        <h3 id="edu-modal-title">Add Education Record</h3>
+        <button type="button" class="close-modal-btn" onclick="closeModal('edu-modal-backdrop')">✕</button>
+      </div>
+
+      <form id="edu-modal-form">
+        <input type="hidden" id="modal-edu-id" value="">
+
+        <div class="admin-form-group">
+          <label class="admin-form-label">Degree Title *</label>
+          <input type="text" id="modal-edu-degree" class="admin-input" placeholder="e.g. Master of Computer Application (MCA)" required>
+        </div>
+
+        <div class="admin-form-group">
+          <label class="admin-form-label">Institution / University *</label>
+          <input type="text" id="modal-edu-institution" class="admin-input" placeholder="e.g. Institute of Technology, Nirma University" required>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="admin-form-group">
+            <label class="admin-form-label">Location *</label>
+            <input type="text" id="modal-edu-location" class="admin-input" placeholder="e.g. Ahmedabad, Gujarat" required>
+          </div>
+          <div class="admin-form-group">
+            <label class="admin-form-label">Period / Years *</label>
+            <input type="text" id="modal-edu-period" class="admin-input" placeholder="e.g. 2022 – 2024" required>
+          </div>
+        </div>
+
+        <div class="admin-form-group">
+          <label class="admin-form-label">Grade / Percentage *</label>
+          <input type="text" id="modal-edu-grade" class="admin-input" placeholder="e.g. 78.60%" required>
+        </div>
+
+        <div class="admin-form-group">
+          <label class="admin-form-label">Highlights / Honors (Optional)</label>
+          <textarea id="modal-edu-highlights" class="admin-textarea" rows="2" placeholder="e.g. Vice President of MCA Student Association, 65th State Rank in ACPC-CMAT"></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('edu-modal-backdrop')">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <span>💾 Save Education</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/js/admin.js"></script>
+</body>
+</html>

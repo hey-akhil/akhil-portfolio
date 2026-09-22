@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="100%" height="100%" fill="none">
+  <defs>
+    <!-- Brand Cyan-Indigo-Violet Gradient matching AutomateX -->
+    <linearGradient id="axBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="45%" stop-color="#8b5cf6" />
+      <stop offset="80%" stop-color="#06b6d4" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+
+    <!-- Floating Pill White-Cyan Gradient -->
+    <linearGradient id="axPillGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#ffffff" />
+    </linearGradient>
+
+    <!-- Ambient Neon Glow -->
+    <filter id="axGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="5" flood-color="#6366f1" flood-opacity="0.45" />
+    </filter>
+  </defs>
+
+  <!-- Group with glow effect -->
+  <g filter="url(#axGlow)">
+    <!-- 1. The 'A' Loop + Right Descending Diagonal of 'X' -->
+    <!-- Starts at right tip of horizontal bar -> corner of A -> apex -> bottom-right tail of X -->
+    <path d="M 88 136 L 40 136 L 98 38 L 164 164"
+          stroke="url(#axBrandGrad)"
+          stroke-width="19"
+          stroke-linecap="round"
+          stroke-linejoin="round" />
+
+    <!-- 2. Lower Ascending Diagonal of 'X' -->
+    <!-- Extends down-left from the intersection -->
+    <path d="M 88 174 L 126 111"
+          stroke="url(#axBrandGrad)"
+          stroke-width="19"
+          stroke-linecap="round" />
+
+    <!-- 3. Floating Upper Ascending Pill of 'X' -->
+    <!-- Sits on the exact same diagonal in crisp White / Electric Cyan -->
+    <path d="M 143 83 L 165 47"
+          stroke="url(#axPillGrad)"
+          stroke-width="19"
+          stroke-linecap="round" />
+  </g>
+</svg>
