@@ -55,6 +55,11 @@ def is_admin(request: Request) -> bool:
     token = request.cookies.get("admin_session")
     return token == "authenticated_akhil"
 
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint returning database connectivity and response metrics."""
+    return database.check_health()
+
 # ============================================================================
 # Front-end HTML Routes
 # ============================================================================

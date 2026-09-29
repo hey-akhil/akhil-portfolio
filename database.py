@@ -1,12 +1,15 @@
 """
-AutomateX Database Manager (Supabase Cloud + Resilient Local JSON Fallback)
+AutomateX Database Manager (Neon Serverless PostgreSQL + Resilient Local JSON Fallback)
 Supports full CRUD for Projects, Experience, Education, Skills, Profile, and Messages.
+Zero 7-day inactivity pause: Neon automatically sleeps when idle and auto-wakes on demand.
 """
 
 import os
 import json
+import time
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+from contextlib import contextmanager
 from dotenv import load_dotenv
 
 # Load environment variables (.env)
@@ -16,26 +19,84 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DATA_FILE = os.path.join(DATA_DIR, "portfolio.json")
 
-# Supabase Credentials
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
-SUPABASE_KEY = (
-    os.getenv("SUPABASE_KEY")
-    or os.getenv("SUPABASE_SECRET_KEY")
-    or os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
-).strip()
+# PostgreSQL / Neon Database Connection
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
-supabase_client = None
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor, Json
+    HAS_PSYCOPG2 = True
+    if DATABASE_URL:
+        print(f"[+] Neon Serverless PostgreSQL configured via DATABASE_URL")
+except ImportError:
+    HAS_PSYCOPG2 = False
+    print("[!] Warning: psycopg2 not found. Operating on local JSON fallback.")
 
-if SUPABASE_URL and SUPABASE_KEY:
+# In-Memory Cache for fast page response & instant wake-up
+_CACHE_DATA: Optional[Dict[str, Any]] = None
+_CACHE_TIMESTAMP: float = 0.0
+CACHE_TTL: float = 15.0  # 15 seconds TTL
+
+def invalidate_cache():
+    """Invalidates the in-memory cache so updates reflect immediately."""
+    global _CACHE_DATA, _CACHE_TIMESTAMP
+    _CACHE_DATA = None
+    _CACHE_TIMESTAMP = 0.0
+
+# ============================================================================
+# PostgreSQL Connection Management
+# ============================================================================
+
+def get_pg_connection():
+    """Establishes a connection to Neon PostgreSQL with connection timeout."""
+    if not DATABASE_URL or not HAS_PSYCOPG2:
+        return None
+    return psycopg2.connect(DATABASE_URL, connect_timeout=10)
+
+@contextmanager
+def pg_cursor(commit: bool = False):
+    """Context manager yielding a RealDictCursor with auto-commit/rollback."""
+    conn = None
     try:
-        from supabase import create_client
-        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-        print(f"[+] Connected to Supabase Cloud Database: {SUPABASE_URL}")
+        conn = get_pg_connection()
+        if conn is None:
+            raise ConnectionError("No DATABASE_URL configured or psycopg2 unavailable")
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        yield cur
+        if commit:
+            conn.commit()
     except Exception as e:
-        print(f"[!] Warning: Could not initialize Supabase client: {e}")
-        supabase_client = None
+        if conn and commit:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        raise e
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
+def _serialize_row(row: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Converts datetime objects in a database row to ISO strings."""
+    if not row:
+        return None
+    res = dict(row)
+    for k, v in res.items():
+        if isinstance(v, datetime):
+            res[k] = v.isoformat()
+    return res
+
+def _serialize_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Converts datetime objects across a list of database rows."""
+    return [_serialize_row(r) for r in rows if r is not None]
+
+# ============================================================================
 # Default Fallback Dataset
+# ============================================================================
+
 DEFAULT_DATA: Dict[str, Any] = {
     "profile": {
         "name": "Akhil Pandey",
@@ -129,147 +190,14 @@ DEFAULT_DATA: Dict[str, Any] = {
             ]
         }
     ],
-    "projects": [
-        {
-            "id": "proj-1",
-            "title": "AutomateX API Gateway & Workflow Orchestrator",
-            "category": "backend",
-            "category_label": "Backend & APIs",
-            "description": "High-throughput asynchronous REST API built with FastAPI, PostgreSQL, and Redis. Features automated webhook ingestion, retry mechanisms, and rate-limited endpoints. Deployed live on Render.",
-            "tech_stack": ["Python", "FastAPI", "PostgreSQL", "Redis", "Docker", "Render"],
-            "github_url": "https://github.com/akhiil1/automatex-api-gateway",
-            "render_url": "https://automatex-api-gateway.onrender.com",
-            "has_render": True,
-            "status": "Live on Render",
-            "date": "2025"
-        },
-        {
-            "id": "proj-2",
-            "title": "AI-Powered Customer CRM & Automated Leads Engine",
-            "category": "automation",
-            "category_label": "Workflow Automation",
-            "description": "Custom CRM engine engineered for rapid client query intake, automated email alerts, and multi-step webhook sync between forms, database, and notification channels. Hosted live on Render.",
-            "tech_stack": ["Python", "Django", "N8N", "Zapier", "REST APIs", "Render"],
-            "github_url": "https://github.com/akhiil1/ai-leads-crm-automation",
-            "render_url": "https://leads-crm-engine.onrender.com",
-            "has_render": True,
-            "status": "Live on Render",
-            "date": "2025"
-        },
-        {
-            "id": "proj-3",
-            "title": "Smart Document Data Extraction & OCR Pipeline",
-            "category": "automation",
-            "category_label": "Automation & AI",
-            "description": "Automated OCR extraction pipeline that reads invoices and vouchers, executes strict mathematical validation rules, and saves structured records into databases.",
-            "tech_stack": ["Python", "OpenCV", "FastAPI", "Make.com", "SQL"],
-            "github_url": "https://github.com/akhiil1/doc-extractor-pipeline",
-            "render_url": "",
-            "has_render": False,
-            "status": "GitHub Repo",
-            "date": "2024"
-        },
-        {
-            "id": "proj-4",
-            "title": "Scalable Authentication & Microservices Boilerplate",
-            "category": "backend",
-            "category_label": "Microservices",
-            "description": "Production-ready template for microservices architecture featuring JWT authentication, role-based access control (RBAC), rate-limiting middleware, and health-check monitoring.",
-            "tech_stack": ["Python", "FastAPI", "JWT", "Docker", "PostgreSQL", "Render"],
-            "github_url": "https://github.com/akhiil1/fastapi-auth-microservices",
-            "render_url": "https://fastapi-microservices-demo.onrender.com",
-            "has_render": True,
-            "status": "Live on Render",
-            "date": "2024"
-        },
-        {
-            "id": "proj-5",
-            "title": "RPA Financial Reconciliation & Reporting Bot",
-            "category": "automation",
-            "category_label": "RPA Automation",
-            "description": "Automated desktop & web scraping bot to match bank receipts with internal ledger records, generating audit-ready Excel reports and notifying stakeholders on Slack/Email.",
-            "tech_stack": ["Python", "Pandas", "Zapier", "Office 365"],
-            "github_url": "https://github.com/akhiil1/rpa-finance-reconciler",
-            "render_url": "",
-            "has_render": False,
-            "status": "GitHub Repo",
-            "date": "2024"
-        }
-    ],
-    "experience": [
-        {
-            "id": "exp-1",
-            "role": "Python Developer",
-            "company": "Digipie Technologies",
-            "location": "Surat, Gujarat",
-            "period": "Jul 2025 – Present",
-            "badge": "Current Role",
-            "points": [
-                "Architecting robust backend APIs using Python (FastAPI & Django); coordinating with team members and clients to resolve queries and deliver work on time.",
-                "Automating routine office workflows using Make.com, Zapier, and N8N, reducing manual operational effort by 75% and minimizing errors.",
-                "Performing data validation and consistency checks; identifying root causes of data issues and maintaining audit-ready records."
-            ]
-        },
-        {
-            "id": "exp-2",
-            "role": "Software Developer",
-            "company": "Biztechnosys Infotech Pvt Ltd",
-            "location": "Bangalore, Karnataka",
-            "period": "Jul 2024 – Jun 2025",
-            "badge": "Full-Time",
-            "points": [
-                "Interacted with clients to understand their working process and customized CRM software as per their day-to-day requirements.",
-                "Maintained structured data, validation rules, and reporting formats to keep enterprise records clean and audit-ready.",
-                "Improved turnaround time of backend processes through better coordination, query tuning, and proactive follow-ups."
-            ]
-        },
-        {
-            "id": "exp-3",
-            "role": "RPA Developer (Internship)",
-            "company": "1Rivet India LLP",
-            "location": "Valsad, Gujarat",
-            "period": "Feb 2024 – Jun 2024",
-            "badge": "Internship",
-            "points": [
-                "Identified repetitive manual tasks in office processes and helped automate them, significantly improving overall efficiency.",
-                "Collaborated with senior engineers to track, benchmark, and report runtime improvements of automated processes."
-            ]
-        }
-    ],
-    "education": [
-        {
-            "id": "edu-1",
-            "degree": "Master of Computer Application (MCA)",
-            "institution": "Institute of Technology, Nirma University",
-            "location": "Ahmedabad, Gujarat",
-            "period": "2022 – 2024",
-            "grade": "78.60%",
-            "highlights": "Served as Vice President of Association of MCA Students (AMS); Secured 65th State Rank in national-level ACPC-CMAT entrance exam."
-        },
-        {
-            "id": "edu-2",
-            "degree": "Bachelor of Computer Application (BCA)",
-            "institution": "Naran Lala College of Professional & Applied Sciences",
-            "location": "Navsari, Gujarat",
-            "period": "2019 – 2022",
-            "grade": "80.40%",
-            "highlights": "Specialized in Computer Programming, Database Management Systems, and Software Engineering."
-        },
-        {
-            "id": "edu-3",
-            "degree": "Higher Secondary (HSC) & Secondary (SSC)",
-            "institution": "Navchetan High School",
-            "location": "Navsari, Gujarat",
-            "period": "2017 – 2019",
-            "grade": "HSC: 70.26% | SSC: 66.00%",
-            "highlights": "Strong foundation in Science and Computer Operations."
-        }
-    ],
+    "projects": [],
+    "experience": [],
+    "education": [],
     "messages": []
 }
 
 # ============================================================================
-# Local JSON File Operations (Fallback Storage)
+# Local JSON File Operations (Resilient Local Dual-Sync & Offline Fallback)
 # ============================================================================
 
 def load_local_data() -> Dict[str, Any]:
@@ -291,7 +219,7 @@ def load_local_data() -> Dict[str, Any]:
     return DEFAULT_DATA
 
 def save_local_data(data: Dict[str, Any]) -> bool:
-    """Saves portfolio database to local JSON file."""
+    """Saves portfolio database to local JSON file for backup resilience."""
     os.makedirs(DATA_DIR, exist_ok=True)
     try:
         with open(DATA_FILE, "w", encoding="utf-8") as f:
@@ -302,35 +230,77 @@ def save_local_data(data: Dict[str, Any]) -> bool:
         return False
 
 # ============================================================================
-# Unified Portfolio Loader
+# Unified Portfolio Loader (NeonDB First + Resilient Fallback)
 # ============================================================================
 
 def load_data() -> Dict[str, Any]:
     """
     Unified loader for templates and routes.
-    Tries Supabase first; if any table is not ready or network fails,
-    seamlessly falls back to local JSON data.
+    Executes a single pipeline query on Neon Serverless PostgreSQL.
+    Caches result for 15s to keep navigation instant.
+    Falls back gracefully to local JSON if database is cold-starting or offline.
     """
+    global _CACHE_DATA, _CACHE_TIMESTAMP
+    now = time.time()
+    if _CACHE_DATA is not None and (now - _CACHE_TIMESTAMP) < CACHE_TTL:
+        return _CACHE_DATA
+
     local = load_local_data()
-    if supabase_client:
+
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            prof = get_profile()
-            if prof and prof.get("name"):
-                return {
-                    "profile": prof,
-                    "skills": get_skills(),
-                    "services": local.get("services", DEFAULT_DATA["services"]),
-                    "projects": get_projects(),
-                    "experience": get_experience(),
-                    "education": get_education(),
-                    "messages": get_messages()
-                }
-        except Exception:
-            pass
+            with pg_cursor() as cur:
+                # 1. Profile
+                cur.execute("SELECT * FROM public.profile WHERE id=%s;", ("main",))
+                prof_row = cur.fetchone()
+                prof = _serialize_row(prof_row) if prof_row else {}
+
+                # 2. Projects
+                cur.execute("SELECT * FROM public.projects ORDER BY created_at DESC;")
+                projects = _serialize_rows(cur.fetchall())
+
+                # 3. Experience
+                cur.execute("SELECT * FROM public.experience ORDER BY created_at DESC;")
+                experience = _serialize_rows(cur.fetchall())
+
+                # 4. Education
+                cur.execute("SELECT * FROM public.education ORDER BY created_at ASC;")
+                education = _serialize_rows(cur.fetchall())
+
+                # 5. Skills
+                cur.execute("SELECT name FROM public.skills ORDER BY id ASC;")
+                skills = [r["name"] for r in cur.fetchall()]
+
+                # 6. Messages
+                cur.execute("SELECT * FROM public.messages ORDER BY created_at DESC;")
+                messages = _serialize_rows(cur.fetchall())
+
+                if prof and prof.get("name"):
+                    if "resume_url" not in prof or not prof["resume_url"]:
+                        prof["resume_url"] = "/resume"
+
+                    data = {
+                        "profile": prof,
+                        "skills": skills if skills else local.get("skills", DEFAULT_DATA["skills"]),
+                        "services": local.get("services", DEFAULT_DATA["services"]),
+                        "projects": projects,
+                        "experience": experience,
+                        "education": education,
+                        "messages": messages
+                    }
+                    _CACHE_DATA = data
+                    _CACHE_TIMESTAMP = now
+                    return data
+        except Exception as e:
+            print(f"[!] NeonDB load_data fallback notice: {e}")
+
+    _CACHE_DATA = local
+    _CACHE_TIMESTAMP = now
     return local
 
 def save_data(data: Dict[str, Any]) -> bool:
-    """Saves data locally and attempts Supabase sync."""
+    """Saves data locally."""
+    invalidate_cache()
     return save_local_data(data)
 
 # ============================================================================
@@ -338,32 +308,35 @@ def save_data(data: Dict[str, Any]) -> bool:
 # ============================================================================
 
 def get_projects() -> List[Dict[str, Any]]:
-    """Fetches projects from Supabase with fallback to local JSON."""
-    if supabase_client:
+    """Fetches all projects from NeonDB or local storage."""
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            res = supabase_client.table("projects").select("*").order("created_at", desc=True).execute()
-            if res.data is not None:
-                return res.data
-        except Exception:
-            pass
+            with pg_cursor() as cur:
+                cur.execute("SELECT * FROM public.projects ORDER BY created_at DESC;")
+                return _serialize_rows(cur.fetchall())
+        except Exception as e:
+            print(f"[!] NeonDB get_projects notice: {e}")
     return load_local_data().get("projects", [])
 
 def get_project_by_id(project_id: str) -> Optional[Dict[str, Any]]:
     """Gets a project by its unique ID."""
-    if supabase_client:
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            res = supabase_client.table("projects").select("*").eq("id", project_id).execute()
-            if res.data and len(res.data) > 0:
-                return res.data[0]
-        except Exception:
-            pass
+            with pg_cursor() as cur:
+                cur.execute("SELECT * FROM public.projects WHERE id=%s;", (project_id,))
+                row = cur.fetchone()
+                if row:
+                    return _serialize_row(row)
+        except Exception as e:
+            print(f"[!] NeonDB get_project_by_id notice: {e}")
+
     for p in load_local_data().get("projects", []):
         if p.get("id") == project_id:
             return p
     return None
 
 def add_project(data_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """Adds a new project to Supabase and syncs with local storage."""
+    """Adds a new project to NeonDB and syncs with local storage."""
     tech_stack = data_dict.get("tech_stack", [])
     if isinstance(tech_stack, str):
         tech_stack = [t.strip() for t in tech_stack.split(",") if t.strip()]
@@ -396,22 +369,37 @@ def add_project(data_dict: Dict[str, Any]) -> Dict[str, Any]:
         "date": str(datetime.now().year)
     }
 
-    # Supabase cloud write
-    if supabase_client:
+    # NeonDB Cloud write
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            supabase_client.table("projects").insert(new_project).execute()
+            with pg_cursor(commit=True) as cur:
+                cur.execute("""
+                    INSERT INTO public.projects (id, title, category, category_label, description, tech_stack, github_url, render_url, has_render, status, date)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                """, (
+                    new_project["id"],
+                    new_project["title"],
+                    new_project["category"],
+                    new_project["category_label"],
+                    new_project["description"],
+                    Json(new_project["tech_stack"]),
+                    new_project["github_url"],
+                    new_project["render_url"],
+                    new_project["has_render"],
+                    new_project["status"],
+                    new_project["date"]
+                ))
         except Exception as e:
-            print(f"[!] Supabase insert project notice: {e}")
+            print(f"[!] NeonDB add_project notice: {e}")
 
-    # Local JSON dual-write
+    invalidate_cache()
     db = load_local_data()
     db.setdefault("projects", []).insert(0, new_project)
     save_local_data(db)
     return new_project
 
 def update_project(project_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Updates a project in Supabase and local storage."""
-    # Local update
+    """Updates a project in NeonDB and local storage."""
     db = load_local_data()
     projects = db.get("projects", [])
     updated_obj = None
@@ -433,7 +421,7 @@ def update_project(project_id: str, updates: Dict[str, Any]) -> Optional[Dict[st
                 p["github_url"] = updates["github_url"].strip()
             if "render_url" in updates and updates["render_url"] is not None:
                 p["render_url"] = updates["render_url"].strip()
-            
+
             has_render = bool(p.get("render_url")) and bool(updates.get("has_render", True))
             p["has_render"] = has_render
             p["status"] = "Live on Render" if has_render else "GitHub Repo"
@@ -444,40 +432,54 @@ def update_project(project_id: str, updates: Dict[str, Any]) -> Optional[Dict[st
             updated_obj = p
             break
 
-    # Supabase update
-    if supabase_client and updated_obj:
+    if DATABASE_URL and HAS_PSYCOPG2 and updated_obj:
         try:
-            clean_fields = {
-                "title": updated_obj.get("title"),
-                "category": updated_obj.get("category"),
-                "category_label": updated_obj.get("category_label"),
-                "description": updated_obj.get("description"),
-                "tech_stack": updated_obj.get("tech_stack"),
-                "github_url": updated_obj.get("github_url"),
-                "render_url": updated_obj.get("render_url"),
-                "has_render": updated_obj.get("has_render"),
-                "status": updated_obj.get("status"),
-                "date": updated_obj.get("date")
-            }
-            supabase_client.table("projects").update(clean_fields).eq("id", project_id).execute()
+            with pg_cursor(commit=True) as cur:
+                cur.execute("""
+                    UPDATE public.projects SET
+                        title = %s,
+                        category = %s,
+                        category_label = %s,
+                        description = %s,
+                        tech_stack = %s,
+                        github_url = %s,
+                        render_url = %s,
+                        has_render = %s,
+                        status = %s,
+                        date = %s
+                    WHERE id = %s;
+                """, (
+                    updated_obj.get("title"),
+                    updated_obj.get("category"),
+                    updated_obj.get("category_label"),
+                    updated_obj.get("description"),
+                    Json(updated_obj.get("tech_stack", [])),
+                    updated_obj.get("github_url"),
+                    updated_obj.get("render_url"),
+                    updated_obj.get("has_render"),
+                    updated_obj.get("status"),
+                    updated_obj.get("date"),
+                    project_id
+                ))
         except Exception as e:
-            print(f"[!] Supabase update project notice: {e}")
+            print(f"[!] NeonDB update_project notice: {e}")
 
+    invalidate_cache()
     return updated_obj
 
 def delete_project(project_id: str) -> bool:
-    """Deletes a project from Supabase and local storage."""
+    """Deletes a project from NeonDB and local storage."""
     deleted = False
 
-    # Supabase delete
-    if supabase_client:
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            supabase_client.table("projects").delete().eq("id", project_id).execute()
-            deleted = True
+            with pg_cursor(commit=True) as cur:
+                cur.execute("DELETE FROM public.projects WHERE id = %s;", (project_id,))
+                deleted = True
         except Exception as e:
-            print(f"[!] Supabase delete project notice: {e}")
+            print(f"[!] NeonDB delete_project notice: {e}")
 
-    # Local delete
+    invalidate_cache()
     db = load_local_data()
     projects = db.get("projects", [])
     filtered = [p for p in projects if p.get("id") != project_id]
@@ -493,32 +495,35 @@ def delete_project(project_id: str) -> bool:
 # ============================================================================
 
 def get_experience() -> List[Dict[str, Any]]:
-    """Fetches work experience records from Supabase or local storage."""
-    if supabase_client:
+    """Fetches work experience records from NeonDB or local storage."""
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            res = supabase_client.table("experience").select("*").order("created_at", desc=True).execute()
-            if res.data is not None:
-                return res.data
-        except Exception:
-            pass
+            with pg_cursor() as cur:
+                cur.execute("SELECT * FROM public.experience ORDER BY created_at DESC;")
+                return _serialize_rows(cur.fetchall())
+        except Exception as e:
+            print(f"[!] NeonDB get_experience notice: {e}")
     return load_local_data().get("experience", [])
 
 def get_experience_by_id(exp_id: str) -> Optional[Dict[str, Any]]:
     """Gets an experience record by ID."""
-    if supabase_client:
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            res = supabase_client.table("experience").select("*").eq("id", exp_id).execute()
-            if res.data and len(res.data) > 0:
-                return res.data[0]
-        except Exception:
-            pass
+            with pg_cursor() as cur:
+                cur.execute("SELECT * FROM public.experience WHERE id=%s;", (exp_id,))
+                row = cur.fetchone()
+                if row:
+                    return _serialize_row(row)
+        except Exception as e:
+            print(f"[!] NeonDB get_experience_by_id notice: {e}")
+
     for e in load_local_data().get("experience", []):
         if e.get("id") == exp_id:
             return e
     return None
 
 def add_experience(data_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """Adds a work experience item to Supabase and local storage."""
+    """Adds a work experience item to NeonDB and local storage."""
     points = data_dict.get("points", [])
     if isinstance(points, str):
         points = [p.strip().lstrip("•-▹* ") for p in points.replace("\r", "").split("\n") if p.strip()]
@@ -533,19 +538,32 @@ def add_experience(data_dict: Dict[str, Any]) -> Dict[str, Any]:
         "points": points
     }
 
-    if supabase_client:
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            supabase_client.table("experience").insert(new_exp).execute()
+            with pg_cursor(commit=True) as cur:
+                cur.execute("""
+                    INSERT INTO public.experience (id, company, role, location, period, badge, points)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s);
+                """, (
+                    new_exp["id"],
+                    new_exp["company"],
+                    new_exp["role"],
+                    new_exp["location"],
+                    new_exp["period"],
+                    new_exp["badge"],
+                    Json(new_exp["points"])
+                ))
         except Exception as e:
-            print(f"[!] Supabase add experience notice: {e}")
+            print(f"[!] NeonDB add_experience notice: {e}")
 
+    invalidate_cache()
     db = load_local_data()
     db.setdefault("experience", []).insert(0, new_exp)
     save_local_data(db)
     return new_exp
 
 def update_experience(exp_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Updates a work experience item in Supabase and local storage."""
+    """Updates a work experience item in NeonDB and local storage."""
     db = load_local_data()
     experiences = db.get("experience", [])
     updated_obj = None
@@ -575,33 +593,46 @@ def update_experience(exp_id: str, updates: Dict[str, Any]) -> Optional[Dict[str
             updated_obj = e
             break
 
-    if supabase_client and updated_obj:
+    if DATABASE_URL and HAS_PSYCOPG2 and updated_obj:
         try:
-            clean_fields = {
-                "company": updated_obj.get("company"),
-                "role": updated_obj.get("role"),
-                "location": updated_obj.get("location"),
-                "period": updated_obj.get("period"),
-                "badge": updated_obj.get("badge"),
-                "points": updated_obj.get("points")
-            }
-            supabase_client.table("experience").update(clean_fields).eq("id", exp_id).execute()
+            with pg_cursor(commit=True) as cur:
+                cur.execute("""
+                    UPDATE public.experience SET
+                        company = %s,
+                        role = %s,
+                        location = %s,
+                        period = %s,
+                        badge = %s,
+                        points = %s
+                    WHERE id = %s;
+                """, (
+                    updated_obj.get("company"),
+                    updated_obj.get("role"),
+                    updated_obj.get("location"),
+                    updated_obj.get("period"),
+                    updated_obj.get("badge"),
+                    Json(updated_obj.get("points", [])),
+                    exp_id
+                ))
         except Exception as e:
-            print(f"[!] Supabase update experience notice: {e}")
+            print(f"[!] NeonDB update_experience notice: {e}")
 
+    invalidate_cache()
     return updated_obj
 
 def delete_experience(exp_id: str) -> bool:
-    """Deletes an experience record from Supabase and local storage."""
+    """Deletes an experience record from NeonDB and local storage."""
     deleted = False
 
-    if supabase_client:
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            supabase_client.table("experience").delete().eq("id", exp_id).execute()
-            deleted = True
+            with pg_cursor(commit=True) as cur:
+                cur.execute("DELETE FROM public.experience WHERE id = %s;", (exp_id,))
+                deleted = True
         except Exception as e:
-            print(f"[!] Supabase delete experience notice: {e}")
+            print(f"[!] NeonDB delete_experience notice: {e}")
 
+    invalidate_cache()
     db = load_local_data()
     experiences = db.get("experience", [])
     filtered = [e for e in experiences if e.get("id") != exp_id]
@@ -617,32 +648,35 @@ def delete_experience(exp_id: str) -> bool:
 # ============================================================================
 
 def get_education() -> List[Dict[str, Any]]:
-    """Fetches education items from Supabase or local storage."""
-    if supabase_client:
+    """Fetches education items from NeonDB or local storage."""
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            res = supabase_client.table("education").select("*").order("created_at", desc=False).execute()
-            if res.data is not None:
-                return res.data
-        except Exception:
-            pass
+            with pg_cursor() as cur:
+                cur.execute("SELECT * FROM public.education ORDER BY created_at ASC;")
+                return _serialize_rows(cur.fetchall())
+        except Exception as e:
+            print(f"[!] NeonDB get_education notice: {e}")
     return load_local_data().get("education", [])
 
 def get_education_by_id(edu_id: str) -> Optional[Dict[str, Any]]:
     """Gets an education record by ID."""
-    if supabase_client:
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            res = supabase_client.table("education").select("*").eq("id", edu_id).execute()
-            if res.data and len(res.data) > 0:
-                return res.data[0]
-        except Exception:
-            pass
+            with pg_cursor() as cur:
+                cur.execute("SELECT * FROM public.education WHERE id=%s;", (edu_id,))
+                row = cur.fetchone()
+                if row:
+                    return _serialize_row(row)
+        except Exception as e:
+            print(f"[!] NeonDB get_education_by_id notice: {e}")
+
     for ed in load_local_data().get("education", []):
         if ed.get("id") == edu_id:
             return ed
     return None
 
 def add_education(data_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """Adds an education record to Supabase and local storage."""
+    """Adds an education record to NeonDB and local storage."""
     new_edu = {
         "id": f"edu-{int(datetime.now().timestamp() * 1000)}",
         "degree": data_dict.get("degree", "").strip(),
@@ -653,19 +687,32 @@ def add_education(data_dict: Dict[str, Any]) -> Dict[str, Any]:
         "highlights": data_dict.get("highlights", "").strip()
     }
 
-    if supabase_client:
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            supabase_client.table("education").insert(new_edu).execute()
+            with pg_cursor(commit=True) as cur:
+                cur.execute("""
+                    INSERT INTO public.education (id, degree, institution, location, period, grade, highlights)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s);
+                """, (
+                    new_edu["id"],
+                    new_edu["degree"],
+                    new_edu["institution"],
+                    new_edu["location"],
+                    new_edu["period"],
+                    new_edu["grade"],
+                    new_edu["highlights"]
+                ))
         except Exception as e:
-            print(f"[!] Supabase add education notice: {e}")
+            print(f"[!] NeonDB add_education notice: {e}")
 
+    invalidate_cache()
     db = load_local_data()
     db.setdefault("education", []).insert(0, new_edu)
     save_local_data(db)
     return new_edu
 
 def update_education(edu_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Updates an education record in Supabase and local storage."""
+    """Updates an education record in NeonDB and local storage."""
     db = load_local_data()
     educations = db.get("education", [])
     updated_obj = None
@@ -691,33 +738,46 @@ def update_education(edu_id: str, updates: Dict[str, Any]) -> Optional[Dict[str,
             updated_obj = ed
             break
 
-    if supabase_client and updated_obj:
+    if DATABASE_URL and HAS_PSYCOPG2 and updated_obj:
         try:
-            clean_fields = {
-                "degree": updated_obj.get("degree"),
-                "institution": updated_obj.get("institution"),
-                "location": updated_obj.get("location"),
-                "period": updated_obj.get("period"),
-                "grade": updated_obj.get("grade"),
-                "highlights": updated_obj.get("highlights")
-            }
-            supabase_client.table("education").update(clean_fields).eq("id", edu_id).execute()
+            with pg_cursor(commit=True) as cur:
+                cur.execute("""
+                    UPDATE public.education SET
+                        degree = %s,
+                        institution = %s,
+                        location = %s,
+                        period = %s,
+                        grade = %s,
+                        highlights = %s
+                    WHERE id = %s;
+                """, (
+                    updated_obj.get("degree"),
+                    updated_obj.get("institution"),
+                    updated_obj.get("location"),
+                    updated_obj.get("period"),
+                    updated_obj.get("grade"),
+                    updated_obj.get("highlights"),
+                    edu_id
+                ))
         except Exception as e:
-            print(f"[!] Supabase update education notice: {e}")
+            print(f"[!] NeonDB update_education notice: {e}")
 
+    invalidate_cache()
     return updated_obj
 
 def delete_education(edu_id: str) -> bool:
-    """Deletes an education record from Supabase and local storage."""
+    """Deletes an education record from NeonDB and local storage."""
     deleted = False
 
-    if supabase_client:
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            supabase_client.table("education").delete().eq("id", edu_id).execute()
-            deleted = True
+            with pg_cursor(commit=True) as cur:
+                cur.execute("DELETE FROM public.education WHERE id = %s;", (edu_id,))
+                deleted = True
         except Exception as e:
-            print(f"[!] Supabase delete education notice: {e}")
+            print(f"[!] NeonDB delete_education notice: {e}")
 
+    invalidate_cache()
     db = load_local_data()
     educations = db.get("education", [])
     filtered = [ed for ed in educations if ed.get("id") != edu_id]
@@ -729,20 +789,20 @@ def delete_education(edu_id: str) -> bool:
     return deleted
 
 # ============================================================================
-# Skills Management (Compact Single Box)
+# Skills Management
 # ============================================================================
 
 def get_skills() -> List[str]:
-    """Fetches list of skills from Supabase or local storage."""
-    if supabase_client:
+    """Fetches list of skills from NeonDB or local storage."""
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            res = supabase_client.table("skills").select("name").order("id", desc=False).execute()
-            if res.data and len(res.data) > 0:
-                skill_names = [r["name"] for r in res.data if r.get("name")]
+            with pg_cursor() as cur:
+                cur.execute("SELECT name FROM public.skills ORDER BY id ASC;")
+                skill_names = [r["name"] for r in cur.fetchall() if r.get("name")]
                 if skill_names:
                     return skill_names
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[!] NeonDB get_skills notice: {e}")
 
     raw_skills = load_local_data().get("skills", [])
     if isinstance(raw_skills, list):
@@ -756,19 +816,20 @@ def get_skills() -> List[str]:
     return DEFAULT_DATA["skills"]
 
 def update_skills(skills_list: List[str]) -> List[str]:
-    """Updates skills list in Supabase and local storage."""
+    """Updates skills list in NeonDB and local storage."""
     clean_skills = [s.strip() for s in skills_list if s.strip()]
 
-    # Supabase sync: refresh skills table
-    if supabase_client:
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            supabase_client.table("skills").delete().neq("id", 0).execute()
-            if clean_skills:
-                payload = [{"name": s} for s in clean_skills]
-                supabase_client.table("skills").insert(payload).execute()
+            with pg_cursor(commit=True) as cur:
+                cur.execute("DELETE FROM public.skills;")
+                if clean_skills:
+                    for s in clean_skills:
+                        cur.execute("INSERT INTO public.skills (name) VALUES (%s) ON CONFLICT (name) DO NOTHING;", (s,))
         except Exception as e:
-            print(f"[!] Supabase skills sync notice: {e}")
+            print(f"[!] NeonDB skills sync notice: {e}")
 
+    invalidate_cache()
     db = load_local_data()
     db["skills"] = clean_skills
     save_local_data(db)
@@ -779,41 +840,58 @@ def update_skills(skills_list: List[str]) -> List[str]:
 # ============================================================================
 
 def get_profile() -> Dict[str, Any]:
-    """Fetches user profile from Supabase with fallback to local JSON."""
-    if supabase_client:
+    """Fetches user profile from NeonDB with fallback to local JSON."""
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            res = supabase_client.table("profile").select("*").eq("id", "main").execute()
-            if res.data and len(res.data) > 0:
-                prof = res.data[0]
-                if "resume_url" not in prof or not prof["resume_url"]:
-                    prof["resume_url"] = "/resume"
-                return prof
-        except Exception:
-            pass
-    return load_local_data().get("profile", {})
+            with pg_cursor() as cur:
+                cur.execute("SELECT * FROM public.profile WHERE id=%s;", ("main",))
+                row = cur.fetchone()
+                if row:
+                    prof = _serialize_row(row)
+                    if "resume_url" not in prof or not prof["resume_url"]:
+                        prof["resume_url"] = "/resume"
+                    return prof
+        except Exception as e:
+            print(f"[!] NeonDB get_profile notice: {e}")
+
+    return load_local_data().get("profile", DEFAULT_DATA["profile"])
 
 def update_profile(updates: Dict[str, Any]) -> Dict[str, Any]:
-    """Updates profile in Supabase and local storage."""
+    """Updates profile in NeonDB and local storage."""
     db = load_local_data()
     profile = db.get("profile", {})
     profile.update(updates)
     db["profile"] = profile
     save_local_data(db)
 
-    if supabase_client:
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            allowed_cols = {
+            allowed_cols = [
                 "name", "brand", "role_title", "tagline", "short_bio", 
                 "about", "email", "phone", "location", "github", 
-                "linkedin", "admin_pin", "status_badge", "resume_url", "stats"
-            }
-            clean_data = {k: v for k, v in updates.items() if k in allowed_cols}
-            if clean_data:
-                clean_data["id"] = "main"
-                supabase_client.table("profile").upsert(clean_data).execute()
-        except Exception as e:
-            print(f"[!] Supabase update profile notice: {e}")
+                "linkedin", "admin_pin", "status_badge", "resume_url"
+            ]
+            set_parts = []
+            values = []
 
+            for col in allowed_cols:
+                if col in updates and updates[col] is not None:
+                    set_parts.append(f"{col} = %s")
+                    values.append(updates[col])
+
+            if "stats" in updates and updates["stats"] is not None:
+                set_parts.append("stats = %s")
+                values.append(Json(updates["stats"]))
+
+            if set_parts:
+                with pg_cursor(commit=True) as cur:
+                    values.append("main")
+                    sql = f"UPDATE public.profile SET {', '.join(set_parts)}, updated_at = NOW() WHERE id = %s;"
+                    cur.execute(sql, tuple(values))
+        except Exception as e:
+            print(f"[!] NeonDB update_profile notice: {e}")
+
+    invalidate_cache()
     return profile
 
 # ============================================================================
@@ -821,7 +899,7 @@ def update_profile(updates: Dict[str, Any]) -> Dict[str, Any]:
 # ============================================================================
 
 def add_message(name: str, email: str, subject: str, message: str) -> Dict[str, Any]:
-    """Saves a client message to Supabase and local storage."""
+    """Saves a client message to NeonDB and local storage."""
     new_msg = {
         "id": f"msg-{int(datetime.now().timestamp() * 1000)}",
         "name": name.strip(),
@@ -832,30 +910,43 @@ def add_message(name: str, email: str, subject: str, message: str) -> Dict[str, 
         "read": False
     }
 
-    if supabase_client:
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            supabase_client.table("messages").insert(new_msg).execute()
+            with pg_cursor(commit=True) as cur:
+                cur.execute("""
+                    INSERT INTO public.messages (id, name, email, subject, message, date, read)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s);
+                """, (
+                    new_msg["id"],
+                    new_msg["name"],
+                    new_msg["email"],
+                    new_msg["subject"],
+                    new_msg["message"],
+                    new_msg["date"],
+                    new_msg["read"]
+                ))
         except Exception as e:
-            print(f"[!] Supabase add message notice: {e}")
+            print(f"[!] NeonDB add_message notice: {e}")
 
+    invalidate_cache()
     db = load_local_data()
     db.setdefault("messages", []).insert(0, new_msg)
     save_local_data(db)
     return new_msg
 
 def get_messages() -> List[Dict[str, Any]]:
-    """Fetches all client inquiries from Supabase or local storage."""
-    if supabase_client:
+    """Fetches all client inquiries from NeonDB or local storage."""
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            res = supabase_client.table("messages").select("*").order("created_at", desc=True).execute()
-            if res.data is not None:
-                return res.data
-        except Exception:
-            pass
+            with pg_cursor() as cur:
+                cur.execute("SELECT * FROM public.messages ORDER BY created_at DESC;")
+                return _serialize_rows(cur.fetchall())
+        except Exception as e:
+            print(f"[!] NeonDB get_messages notice: {e}")
     return load_local_data().get("messages", [])
 
 def toggle_message_read(msg_id: str) -> bool:
-    """Toggles read state of a message in Supabase and local storage."""
+    """Toggles read state of a message in NeonDB and local storage."""
     db = load_local_data()
     found = False
     new_read_val = False
@@ -868,25 +959,32 @@ def toggle_message_read(msg_id: str) -> bool:
             found = True
             break
 
-    if supabase_client and found:
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            supabase_client.table("messages").update({"read": new_read_val}).eq("id", msg_id).execute()
+            with pg_cursor(commit=True) as cur:
+                cur.execute("UPDATE public.messages SET read = NOT read WHERE id = %s RETURNING read;", (msg_id,))
+                row = cur.fetchone()
+                if row is not None:
+                    found = True
         except Exception as e:
-            print(f"[!] Supabase toggle message notice: {e}")
+            print(f"[!] NeonDB toggle_message_read notice: {e}")
 
+    invalidate_cache()
     return found
 
 def delete_message(msg_id: str) -> bool:
-    """Deletes a message from Supabase and local storage."""
+    """Deletes a message from NeonDB and local storage."""
     deleted = False
 
-    if supabase_client:
+    if DATABASE_URL and HAS_PSYCOPG2:
         try:
-            supabase_client.table("messages").delete().eq("id", msg_id).execute()
-            deleted = True
+            with pg_cursor(commit=True) as cur:
+                cur.execute("DELETE FROM public.messages WHERE id = %s;", (msg_id,))
+                deleted = True
         except Exception as e:
-            print(f"[!] Supabase delete message notice: {e}")
+            print(f"[!] NeonDB delete_message notice: {e}")
 
+    invalidate_cache()
     db = load_local_data()
     msgs = db.get("messages", [])
     filtered = [m for m in msgs if m.get("id") != msg_id]
@@ -896,3 +994,34 @@ def delete_message(msg_id: str) -> bool:
         deleted = True
 
     return deleted
+
+# ============================================================================
+# Health Check / Monitoring
+# ============================================================================
+
+def check_health() -> Dict[str, Any]:
+    """Checks Neon PostgreSQL connectivity and response latency."""
+    if not DATABASE_URL or not HAS_PSYCOPG2:
+        return {
+            "status": "degraded",
+            "backend": "local_json",
+            "reason": "DATABASE_URL not configured or psycopg2 not installed"
+        }
+    try:
+        t0 = time.time()
+        with pg_cursor() as cur:
+            cur.execute("SELECT 1;")
+            cur.fetchone()
+        latency_ms = round((time.time() - t0) * 1000, 1)
+        return {
+            "status": "healthy",
+            "backend": "Neon Serverless PostgreSQL",
+            "latency_ms": latency_ms,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "backend": "local_json_fallback",
+            "error": str(e)
+        }

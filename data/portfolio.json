@@ -5,7 +5,7 @@
     "roleTitle": "Backend Developer & Automation Specialist",
     "tagline": "Software Developer | Python & FastAPI | Workflow Automation",
     "shortBio": "MCA graduate with 2+ years of professional experience in IT, process automation, and scalable backend architecture. Specialized in Python, FastAPI, and enterprise workflows.",
-    "about": "I am a backend-oriented Software Developer with hands-on expertise in architecting high-performance REST APIs, automating mission-critical business workflows (n8n, Make.com, Zapier), and managing structured database environments. Experienced at coordinating with cross-functional teams and clients, resolving queries with agility, and deploying live production services on Render and Docker.",
+    "about": "I am a backend-focused Software Developer with hands-on expertise in Python, FastAPI, Django, and automated workflow pipelines (n8n, Zapier, Make.com). I help businesses and clients streamline operations, eliminate repetitive manual data entry, and deploy robust, live applications on Render and Cloud platforms.",
     "email": "akhil.pandeyy1@gmail.com",
     "altEmail": "automatex.developer@gmail.com",
     "phone": "+91 76003 47544",
@@ -47,7 +47,7 @@
       }
     ],
     "resume_url": "/resume",
-    "role_title": "Python Developer",
+    "role_title": "Software Developer & Automation Specialist",
     "status_badge": "Available for Opportunities",
     "admin_pin": "akhil123"
   },
