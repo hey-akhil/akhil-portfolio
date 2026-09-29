@@ -179,8 +179,7 @@ async def upload_resume(file: UploadFile = File(...)):
 @app.post("/api/admin/login")
 async def admin_login(body: AdminLogin, response: Response):
     """Verifies Admin PIN and issues session cookie."""
-    profile = database.get_profile()
-    correct_pin = profile.get("admin_pin", "akhil123")
+    correct_pin = database.get_admin_pin()
 
     if body.pin == correct_pin:
         response.set_cookie(
@@ -192,7 +191,7 @@ async def admin_login(body: AdminLogin, response: Response):
         )
         return {"success": True, "message": "Admin session authenticated."}
     
-    raise HTTPException(status_code=401, detail="Incorrect PIN! Default is akhil123")
+    raise HTTPException(status_code=401, detail="Incorrect PIN! Access denied.")
 
 @app.post("/api/admin/logout")
 async def admin_logout(response: Response):

@@ -50,7 +50,7 @@ function initPinLogin() {
         setTimeout(() => window.location.reload(), 300);
       } else {
         if (errorMsg) {
-          errorMsg.textContent = data.detail || 'Incorrect PIN! Default is akhil123';
+          errorMsg.textContent = data.detail || 'Incorrect PIN! Access denied.';
           errorMsg.style.display = 'block';
         }
         if (pinInput) {

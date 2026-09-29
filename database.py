@@ -856,6 +856,24 @@ def get_profile() -> Dict[str, Any]:
 
     return load_local_data().get("profile", DEFAULT_DATA["profile"])
 
+def get_admin_pin() -> str:
+    """
+    Fetches the Admin Passcode PIN from NeonDB admin_credentials table.
+    Stored directly as a string in NeonDB for easy viewing & recovery.
+    """
+    if DATABASE_URL and HAS_PSYCOPG2:
+        try:
+            with pg_cursor() as cur:
+                cur.execute("SELECT password_pin FROM public.admin_credentials WHERE id=%s;", ("admin",))
+                row = cur.fetchone()
+                if row and row.get("password_pin"):
+                    return str(row["password_pin"]).strip()
+        except Exception as e:
+            print(f"[!] NeonDB get_admin_pin notice: {e}")
+
+    prof = get_profile()
+    return prof.get("admin_pin", "akhil123")
+
 def update_profile(updates: Dict[str, Any]) -> Dict[str, Any]:
     """Updates profile in NeonDB and local storage."""
     db = load_local_data()
@@ -888,6 +906,18 @@ def update_profile(updates: Dict[str, Any]) -> Dict[str, Any]:
                     values.append("main")
                     sql = f"UPDATE public.profile SET {', '.join(set_parts)}, updated_at = NOW() WHERE id = %s;"
                     cur.execute(sql, tuple(values))
+
+            # Sync password_pin to dedicated admin_credentials table
+            if "admin_pin" in updates and updates["admin_pin"]:
+                new_pin = str(updates["admin_pin"]).strip()
+                with pg_cursor(commit=True) as cur:
+                    cur.execute("""
+                        INSERT INTO public.admin_credentials (id, username, password_pin, updated_at)
+                        VALUES ('admin', 'akhil', %s, NOW())
+                        ON CONFLICT (id) DO UPDATE SET
+                            password_pin = EXCLUDED.password_pin,
+                            updated_at = NOW();
+                    """, (new_pin,))
         except Exception as e:
             print(f"[!] NeonDB update_profile notice: {e}")
 
